@@ -1,2 +1,0 @@
-# CineFetch_Movie_Downloader_App
-Flutter application
