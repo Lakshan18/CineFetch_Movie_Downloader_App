@@ -77,6 +77,7 @@ class _SplashScreenState extends State<SplashScreen> {
       loadingText = "Almost Done!";
       progress = 1.0;
       await Future.delayed(const Duration(seconds: 1));
+      // ignore: use_build_context_synchronously
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => LoginProcess(),
