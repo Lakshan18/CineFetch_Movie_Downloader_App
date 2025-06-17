@@ -43,9 +43,10 @@ class UserLoginProcess {
         type: MessageType.success,
       );
       await Future.delayed(const Duration(seconds: 2));
-      Navigator.of(
-        context,
-      ).pushReplacement(SlideFadePageRoute(page: const HomeScreen()));
+      Navigator.of(context).pushAndRemoveUntil(
+        SlideFadePageRoute(page: const HomeScreen()),
+        (route) => false,
+      );
     } else if (password.length < 8) {
       CustomMessage.show(
         context: context,
