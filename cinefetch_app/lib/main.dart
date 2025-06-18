@@ -1,11 +1,21 @@
 import 'dart:async';
 import 'package:cinefetch_app/screens/login_screen.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-void main() {
-  runApp(DevicePreview(enabled: true, builder: (context) => MyApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  runApp(
+    const MyApp(),
+    // DevicePreview(
+    //   enabled: true,
+    //   builder: (context) => const MyApp(),
+    // ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -73,23 +83,23 @@ class _SplashScreenState extends State<SplashScreen> {
         progress = i / 100;
       });
     }
-    setState(() async {
+    setState(() {
       loadingText = "Almost Done!";
       progress = 1.0;
-      await Future.delayed(const Duration(seconds: 1));
-      // ignore: use_build_context_synchronously
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => LoginProcess(),
-        ),
-      );
     });
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginProcess()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
+      const SystemUiOverlayStyle(
         statusBarColor: Color(0xFF051225),
         statusBarIconBrightness: Brightness.dark,
       ),
@@ -99,14 +109,14 @@ class _SplashScreenState extends State<SplashScreen> {
       top: true,
       bottom: false,
       child: Scaffold(
-        backgroundColor: Color(0xFF051225),
+        backgroundColor: const Color(0xFF051225),
         body: Column(
           children: [
             Container(
               width: double.infinity,
               height: 100,
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -140,12 +150,14 @@ class _SplashScreenState extends State<SplashScreen> {
                           LinearProgressIndicator(
                             value: progress,
                             backgroundColor: Colors.white24,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.blue,
+                            ),
                           ),
-                          SizedBox(height: 10),
+                          const SizedBox(height: 10),
                           Text(
                             loadingText,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w400,

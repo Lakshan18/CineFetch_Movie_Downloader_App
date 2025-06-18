@@ -22,7 +22,7 @@ class _MovieOverviewState extends State<MovieOverview> {
   Widget _buildRatingCircle(String label, String? value) {
     if (value == null) return const SizedBox.shrink();
 
-    return Container(
+    return SizedBox(
       width: 80,
       height: 80,
       child: Column(

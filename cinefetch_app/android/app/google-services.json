@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "838367836113",
+    "project_id": "cinefetch-movie-downloader-app",
+    "storage_bucket": "cinefetch-movie-downloader-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838367836113:android:6dbe9df5d9e2c8aa91d2f0",
+        "android_client_info": {
+          "package_name": "com.example.cinefetch_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDarU8Krkp9hkmA_ZES4_odZARHb056TGQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
