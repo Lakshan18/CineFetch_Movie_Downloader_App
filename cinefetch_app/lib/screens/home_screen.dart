@@ -1,5 +1,7 @@
-import 'package:cinefetch_app/components/compact_pagination.dart';
+import 'package:cinefetch_app/animation/custom_animation.dart';
 import 'package:flutter/material.dart';
+import '../components/filter_dropdown.dart';
+import '../components/filter_tag.dart';
 import '../components/movie_card.dart';
 import '../components/pagination_controls.dart';
 import '../models/movie.dart';
@@ -13,7 +15,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
-
+  bool _showFilters = false;
+  Map<String, String> _activeFilters = {};
   int _selectedIndex = 0;
   final List<String> _toggleLabels = ["Latest", "Featured", "Trending"];
   List<Movie> allMovies = [];
@@ -33,6 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _applyFilters(Map<String, String> filters) {
+    setState(() {
+      _activeFilters = filters;
+      // Here you would filter your movie list
+      // Example: filterMovies(filters);
+    });
+  }
+
   void _updateMovieList() {
     setState(() {
       int i = 0;
@@ -40,61 +51,23 @@ class _HomeScreenState extends State<HomeScreen> {
       switch (_selectedIndex) {
         case 0:
           allMovies = [
-            for (i = 0; i < 100; i++)
+            for (i = 0; i < 40; i++) ...[
               Movie(
                 title: "Iron Man",
                 year: "2008",
                 imagePath: "assets/movies/iron_man_2008.jpg",
               ),
-
-            // Movie(
-            //   title: "Avengers Infinity War",
-            //   year: "2018",
-            //   imagePath: "assets/movies/avengers_inf_war_2018.jpg",
-            // ),
-            // Movie(
-            //   title: "Thor Dark World",
-            //   year: "2017",
-            //   imagePath: "assets/movies/thor_d_world_2013.jpg",
-            // ),
-            // Movie(
-            //   title: "Guardian of the Galaxy",
-            //   year: "2014",
-            //   imagePath: "assets/movies/gotg_2014.jpg",
-            // ),
-            // Movie(
-            //   title: "Interstellar",
-            //   year: "2014",
-            //   imagePath: "assets/movies/interstellar_2014.jpg",
-            // ),
-            // Movie(
-            //   title: "Black Panther",
-            //   year: "2018",
-            //   imagePath: "assets/movies/black_panther_2018.jpg",
-            // ),
-            // Movie(
-            //   title: "Doctor Strange",
-            //   year: "2016",
-            //   imagePath: "assets/movies/doctor_strange_2016.jpg",
-            // ),
-            // Movie(
-            //   title: "Captain America: Civil War",
-            //   year: "2016",
-            //   imagePath: "assets/movies/cap_am_civil_war_2016.jpg",
-            // ),
-            // Movie(
-            //   title: "Avengers: Endgame",
-            //   year: "2019",
-            //   imagePath: "assets/movies/endgame_2019.jpg",
-            // ),
-            // Movie(
-            //   title: "Spider-Man: Far From Home",
-            //   year: "2019",
-            //   imagePath: "assets/movies/far_from_home_2019.jpg",
-            // ),
-            // Movie(title: "Tenet", year: "2020", imagePath: "assets/movies/tenet_2020.jpg"),
-            // Movie(title: "1917", year: "2019", imagePath: "assets/movies/1917_2019.jpg"),
-            // Movie(title: "Parasite", year: "2019", imagePath: "assets/movies/parasite_2019.jpg"),
+              Movie(
+                title: "Avengers Infinity War",
+                year: "2018",
+                imagePath: "assets/movies/avengers_inf_war_2018.jpg",
+              ),
+              Movie(
+                title: "Thor Dark World",
+                year: "2017",
+                imagePath: "assets/movies/thor_d_world_2013.jpg",
+              ),
+            ],
           ];
           break;
         case 2:
@@ -129,10 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
               year: "2022",
               imagePath: "assets/movies/eeaao_2022.jpg",
             ),
-            // Movie(title: "The Matrix Resurrections", year: "2021", imagePath: "assets/movies/matrix_4_2021.jpg"),
-            // Movie(title: "No Time to Die", year: "2021", imagePath: "assets/movies/bond_2021.jpg"),
-            // Movie(title: "Jurassic World Dominion", year: "2022", imagePath: "assets/movies/jurassic_2022.jpg"),
-            // Movie(title: "The Suicide Squad", year: "2021", imagePath: "assets/movies/suicide_squad_2021.jpg"),
           ];
           break;
         default:
@@ -145,10 +114,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _updateDisplayedMovies() {
     final startIndex = (currentPage - 1) * moviesPerPage;
     final endIndex = startIndex + moviesPerPage;
-    displayedMovies = allMovies.sublist(
-      startIndex.clamp(0, allMovies.length),
-      endIndex.clamp(0, allMovies.length),
-    );
+    setState(() {
+      displayedMovies = allMovies.sublist(
+        startIndex.clamp(0, allMovies.length),
+        endIndex.clamp(0, allMovies.length),
+      );
+    });
   }
 
   void _changePage(int page) {
@@ -159,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController.animateTo(
       0,
       duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOut,
+      curve: Curves.easeInOut,
     );
   }
 
@@ -178,9 +149,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final totalPages = (allMovies.length / moviesPerPage).ceil();
+    final hasActiveFilters = _activeFilters.isNotEmpty;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: const Color(0xFF020912),
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: const Color(0xFF020912),
         leading: IconButton(
@@ -218,6 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Stack(
         children: [
+          // Background Image
           Positioned.fill(
             child: Opacity(
               opacity: 0.09,
@@ -227,6 +202,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+
+          // Main Content
           SafeArea(
             top: true,
             child: Padding(
@@ -234,6 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 25),
+
                   // Search Bar
                   TextField(
                     decoration: InputDecoration(
@@ -272,99 +250,155 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 35),
-                  // Toggle Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(_toggleLabels.length, (index) {
-                      final isActive = _selectedIndex == index;
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedIndex = index;
-                              _updateMovieList();
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? const Color.fromARGB(255, 23, 51, 90)
-                                  : const Color(0xFF4174BA),
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _toggleLabels[index],
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontFamily: "Quicksand",
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  height: 3,
-                                  width: isActive ? 60 : 0,
-                                  decoration: BoxDecoration(
-                                    color: isActive
-                                        ? Colors.lightBlueAccent
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 30),
-                  // Responsive Movie Grid
-                  Expanded(
-                    child: displayedMovies.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No movies found',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          )
-                        : GridView.builder(
-                            controller: _scrollController,
-                            physics: const BouncingScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio: 0.52,
-                                  crossAxisSpacing: 30,
-                                  mainAxisSpacing: 5,
-                                ),
-                            itemCount: displayedMovies.length,
-                            itemBuilder: (context, index) {
-                              return MovieCard(movie: displayedMovies[index]);
-                            },
-                          ),
-                  ),
-                  // Compact Pagination Controls
-                  if (totalPages > 1)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20, bottom: 20),
-                      child: PaginationControls(
-                        currentPage: currentPage,
-                        totalPages: totalPages,
-                        onPageChanged: _changePage,
+
+                  const SizedBox(height: 20),
+
+                  // Filter Tag
+                  CustomAnimation(
+                    0.5,
+                    type: AnimationType.bounce,
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilterTag(
+                        onPressed: () =>
+                            setState(() => _showFilters = !_showFilters),
+                        hasActiveFilters: hasActiveFilters,
                       ),
                     ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // Toggle Buttons
+                  CustomAnimation(
+                    0.4,
+                    type: AnimationType.fadeSlide,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(_toggleLabels.length, (index) {
+                        final isActive = _selectedIndex == index;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedIndex = index;
+                                _updateMovieList();
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? const Color.fromARGB(255, 23, 51, 90)
+                                    : const Color(0xFF4174BA),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _toggleLabels[index],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontFamily: "Quicksand",
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    height: 3,
+                                    width: isActive ? 60 : 0,
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? Colors.lightBlueAccent
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // Movie Grid with Pagination
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        // Movie Grid
+                        displayedMovies.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No movies found',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              )
+                            : CustomAnimation(
+                                0.35,
+                                type: AnimationType.fadeSlide,
+                                GridView.builder(
+                                  controller: _scrollController,
+                                  physics: const BouncingScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        childAspectRatio: 0.52,
+                                        crossAxisSpacing: 30,
+                                        mainAxisSpacing: 5,
+                                      ),
+                                  itemCount: displayedMovies.length,
+                                  itemBuilder: (context, index) {
+                                    return MovieCard(
+                                      movie: displayedMovies[index],
+                                    );
+                                  },
+                                ),
+                              ),
+
+                        // Pagination Controls
+                        if (totalPages > 1)
+                          Positioned(
+                            bottom: 10,
+                            left: 0,
+                            right: 0,
+                            child: PaginationControls(
+                              currentPage: currentPage,
+                              totalPages: totalPages,
+                              onPageChanged: _changePage,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
+
+          // Filter Dropdown Overlay
+          if (_showFilters)
+            Positioned(
+              top: 180, // Adjusted position below search and filter tag
+              left: 20,
+              right: 20,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.transparent,
+                child: FilterDropdown(
+                  onClose: () => setState(() => _showFilters = false),
+                  onApply: _applyFilters,
+                  initialFilters: _activeFilters,
+                ),
+              ),
+            ),
         ],
       ),
     );

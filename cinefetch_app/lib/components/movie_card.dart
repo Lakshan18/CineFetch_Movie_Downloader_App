@@ -21,7 +21,7 @@ class MovieCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = (screenWidth - 55) / 2;
 
-    return Container(
+    return SizedBox(
       width: cardWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
