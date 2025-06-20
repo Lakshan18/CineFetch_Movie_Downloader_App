@@ -1,12 +1,17 @@
 // import 'dart:io';
+// import 'package:cinefetch_app/components/custom_action_message.dart';
 // import 'package:cinefetch_app/components/custom_message.dart';
+// import 'package:cinefetch_app/components/custom_pin_textfield.dart';
 // import 'package:cinefetch_app/components/custom_textfield.dart';
 // import 'package:cinefetch_app/routes/custom_page_route.dart';
 // import 'package:cinefetch_app/screens/login_screen.dart';
 // import 'package:cinefetch_app/services/image_picker_services.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 // import 'package:flutter/material.dart';
 // import 'package:flutter/services.dart';
 // import 'package:image_picker/image_picker.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 
 // class CreateProfileProcess extends StatefulWidget {
 //   const CreateProfileProcess({super.key});
@@ -15,22 +20,16 @@
 //   State<CreateProfileProcess> createState() => _CreateProfileProcessState();
 // }
 
-// // const CircularProgressIndicator(),
-// // const SizedBox(height: 20),
-// // Text(
-// //   'Loading assets...',
-// //   style: TextStyle(
-// //     fontSize: 18,
-// //     color: Colors.white
-// //   ),
-// // ),
-
 // class _CreateProfileProcessState extends State<CreateProfileProcess> {
 //   final _usernameController = TextEditingController();
 //   final _pinController = TextEditingController();
 //   final ImagePickerService _imagePickerService = ImagePickerService();
 //   File? _profileImage;
 //   bool isLoading = false;
+
+//   // Progress bar variables
+//   double _progress = 0.0;
+//   bool _isCreating = false;
 
 //   Future<void> _pickImage(ImageSource source) async {
 //     try {
@@ -56,6 +55,119 @@
 //       );
 //     } finally {
 //       setState(() => isLoading = false);
+//     }
+//   }
+
+//   Future<bool> _handleProfileImage() async {
+//     if (_profileImage != null) return true;
+
+//     final proceedWithoutImage = await CustomActionMessage.show(
+//       context: context,
+//       title: "Profile Photo",
+//       message:
+//           "You haven't selected a profile photo. Do you want to proceed with the default image?",
+//       yesText: "Proceed",
+//       noText: "Cancel",
+//     );
+
+//     return proceedWithoutImage;
+//   }
+
+//   Future<void> _simulateProgress() async {
+//     for (int i = 1; i <= 100; i++) {
+//       await Future.delayed(const Duration(milliseconds: 40));
+//       if (i == 65 || i == 92) {
+//         await Future.delayed(const Duration(milliseconds: 1500));
+//       }
+//       setState(() {
+//         _progress = i / 100.0;
+//       });
+//     }
+//   }
+
+//   Future<void> _startProfileCreation() async {
+//     final canProceed = await _handleProfileImage();
+//     if (!canProceed) return;
+
+//     setState(() {
+//       _isCreating = true;
+//       _progress = 0.0;
+//     });
+
+//     try {
+//       final prefs = await SharedPreferences.getInstance();
+//       final userId = prefs.getString("userId");
+
+//       if (userId == null) {
+//         CustomMessage.show(
+//           context: context,
+//           message: "Something went wrong!",
+//           type: MessageType.error,
+//         );
+//       }
+
+//       String imageUrl;
+//       String imageType;
+
+//       if (_profileImage != null) {
+//         final storageRef = FirebaseStorage.instance.ref().child(
+//           "UsersProfileImages/user_upd_$userId.jpg",
+//         );
+
+//         await storageRef.putFile(_profileImage!);
+//         imageUrl = await storageRef.getDownloadURL();
+//         imageType = "Uploaded";
+//       } else {
+//         final defaultRef = FirebaseStorage.instance.ref().child(
+//           "UsersProfileImages/user_def_default.png",
+//         );
+//         imageUrl = await defaultRef.getDownloadURL();
+//         imageType = "Default";
+
+//         final userDefRef = FirebaseStorage.instance.ref().child(
+//           "UsersProfileImages/user_def_$userId.png",
+//         );
+//         await userDefRef.putString(imageUrl, format: PutStringFormat.dataUrl);
+//       }
+
+//       await FirebaseFirestore.instance.collection("user").doc(userId).set({
+//         'username': _usernameController.text.trim(),
+//         'unlock_pin': _pinController.text.trim(),
+//         'profile_img_path': imageUrl,
+//         'profile_img_type': imageType,
+//       }, SetOptions(merge: true));
+
+//       await _simulateProgress();
+
+//       if (mounted) {
+//         CustomMessage.show(
+//           context: context,
+//           message: "Profile Created Successfully!",
+//           type: MessageType.success,
+//         );
+
+//         await Future.delayed(const Duration(seconds: 2));
+
+//         Navigator.pushReplacement(
+//           context,
+//           SlideFadePageRoute(page: const LoginProcess()),
+//         );
+//       }
+//     } catch (e) {
+//       if (mounted) {
+//         CustomMessage.show(
+//           context: context,
+//           message: "Failed to create profile: ${e.toString()}",
+//           type: MessageType.error,
+//         );
+//       }
+//     } finally {
+//       if (mounted) {
+//         setState(() {
+//           _isCreating = false;
+//           _progress = 0.0;
+//         });
+//       }
 //     }
 //   }
 
@@ -239,70 +351,94 @@
 //                               suffixIcon: false,
 //                             ),
 //                             const SizedBox(height: 20.0),
-//                             MyTextField(
+//                             MyPinTextField(
 //                               controller: _pinController,
+//                               textfieldinfo:
+//                                   "** create your account key to unlock for emergency moments.!",
 //                               hinttext: "Unlock-PIN",
 //                               obsecuretext: true,
 //                               suffixIcon: true,
 //                             ),
-
 //                             const SizedBox(height: 40.0),
-//                             SizedBox(
-//                               width: double.infinity,
-//                               child: ElevatedButton(
-//                                 onPressed: () {
-//                                   if (_profileImage == null) {
-//                                     CustomMessage.show(
-//                                       context: context,
-//                                       message: "Please select a profile photo.",
-//                                       type: MessageType.error,
-//                                     );
-//                                     return;
-//                                   }
-//                                   if (_usernameController.text.trim().isEmpty ||
-//                                       _pinController.text.trim().isEmpty) {
-//                                     CustomMessage.show(
-//                                       context: context,
-//                                       message:
-//                                           "Username and Unlock-PIN cannot be empty.",
-//                                       type: MessageType.error,
-//                                     );
-//                                     return;
-//                                   }
-//                                   CustomMessage.show(
-//                                     context: context,
-//                                     message: "Profile created successfully!",
-//                                     type: MessageType.success,
-//                                   );
-//                                   Navigator.pushReplacement(
-//                                     context,
-//                                     SlideFadePageRoute(page: LoginProcess()),
-//                                   );
-//                                 },
-//                                 style: ElevatedButton.styleFrom(
-//                                   backgroundColor: const Color(0xFF1A73E8),
-//                                   padding: const EdgeInsets.symmetric(
-//                                     vertical: 14.0,
-//                                     horizontal: 24.0,
-//                                   ),
-//                                   shape: RoundedRectangleBorder(
-//                                     borderRadius: BorderRadius.circular(8.0),
-//                                   ),
+
+//                             if (_isCreating) ...[
+//                               LinearProgressIndicator(
+//                                 value: _progress,
+//                                 minHeight: 8,
+//                                 backgroundColor: Colors.white12,
+//                                 valueColor: AlwaysStoppedAnimation<Color>(
+//                                   Color(0xFF1A73E8),
 //                                 ),
-//                                 child: const Text(
-//                                   "CREATE",
-//                                   style: TextStyle(
-//                                     color: Colors.white,
-//                                     fontSize: 18,
-//                                     fontFamily: "Quicksand",
-//                                     fontWeight: FontWeight.w600,
+//                               ),
+//                               const SizedBox(height: 16),
+//                               Text(
+//                                 "Creating...  ${(100 * _progress).toInt()}%",
+//                                 style: const TextStyle(
+//                                   color: Colors.white,
+//                                   fontSize: 16,
+//                                   fontFamily: "Quicksand",
+//                                   fontWeight: FontWeight.w600,
+//                                 ),
+//                               ),
+//                               const SizedBox(height: 24),
+//                             ] else
+//                               SizedBox(
+//                                 width: double.infinity,
+//                                 child: ElevatedButton(
+//                                   onPressed: () async {
+//                                     // if (_profileImage == null) {
+//                                     //   CustomMessage.show(
+//                                     //     context: context,
+//                                     //     message:
+//                                     //         "Please select a profile photo.",
+//                                     //     type: MessageType.error,
+//                                     //   );
+//                                     //   return;
+//                                     // }
+//                                     if (_usernameController.text
+//                                             .trim()
+//                                             .isEmpty ||
+//                                         _pinController.text.trim().isEmpty) {
+//                                       CustomMessage.show(
+//                                         context: context,
+//                                         message:
+//                                             "Username and Unlock-PIN cannot be empty.",
+//                                         type: MessageType.error,
+//                                       );
+//                                       return;
+//                                     }
+//                                     if (_pinController.text.length != 6) {
+//                                       CustomMessage.show(
+//                                         context: context,
+//                                         message:
+//                                             "PIN must be exactly 6 digits.",
+//                                         type: MessageType.error,
+//                                       );
+//                                       return;
+//                                     }
+//                                     await _startProfileCreation();
+//                                   },
+//                                   style: ElevatedButton.styleFrom(
+//                                     backgroundColor: const Color(0xFF1A73E8),
+//                                     padding: const EdgeInsets.symmetric(
+//                                       vertical: 14.0,
+//                                       horizontal: 24.0,
+//                                     ),
+//                                     shape: RoundedRectangleBorder(
+//                                       borderRadius: BorderRadius.circular(8.0),
+//                                     ),
+//                                   ),
+//                                   child: const Text(
+//                                     "CREATE",
+//                                     style: TextStyle(
+//                                       color: Colors.white,
+//                                       fontSize: 18,
+//                                       fontFamily: "Quicksand",
+//                                       fontWeight: FontWeight.w600,
+//                                     ),
 //                                   ),
 //                                 ),
 //                               ),
-//                             ),
-
-//                             // progress bar..
-
 //                           ],
 //                         ),
 //                       ),
@@ -319,15 +455,19 @@
 // }
 
 import 'dart:io';
+import 'package:cinefetch_app/components/custom_action_message.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/components/custom_pin_textfield.dart';
 import 'package:cinefetch_app/components/custom_textfield.dart';
 import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/login_screen.dart';
 import 'package:cinefetch_app/services/image_picker_services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CreateProfileProcess extends StatefulWidget {
   const CreateProfileProcess({super.key});
@@ -342,15 +482,13 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
   final ImagePickerService _imagePickerService = ImagePickerService();
   File? _profileImage;
   bool isLoading = false;
-
-  // Progress bar variables
   double _progress = 0.0;
   bool _isCreating = false;
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       setState(() => isLoading = true);
-      Navigator.pop(context); // Close the bottom sheet
+      Navigator.pop(context);
 
       File? imageFile;
       if (source == ImageSource.gallery) {
@@ -360,68 +498,166 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
       }
 
       if (imageFile != null) {
-        setState(() {
-          _profileImage = imageFile;
-        });
+        setState(() => _profileImage = imageFile);
       }
     } catch (e) {
-      print('Image picker error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: ${e.toString()}')),
+      CustomMessage.show(
+        context: context,
+        message: "Failed to pick image: ${e.toString()}",
+        type: MessageType.error,
       );
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-  Future<void> _startProfileCreation() async {
-    setState(() {
-      _isCreating = true;
-      _progress = 0.0;
-    });
+  Future<bool> _handleProfileImage() async {
+    if (_profileImage != null) return true;
 
-    // Simulate progress with two delay points
+    return await CustomActionMessage.show(
+      context: context,
+      title: "Profile Photo",
+      message:
+          "You haven't selected a profile photo. Do you want to proceed with the default image?",
+      yesText: "Proceed",
+      noText: "Cancel",
+    );
+  }
+
+  Future<void> _simulateProgress() async {
     for (int i = 1; i <= 100; i++) {
       await Future.delayed(const Duration(milliseconds: 40));
       if (i == 65 || i == 92) {
         await Future.delayed(const Duration(milliseconds: 1500));
       }
-      setState(() {
-        _progress = i / 100.0;
-      });
+      if (mounted) {
+        setState(() => _progress = i / 100.0);
+      }
     }
+  }
 
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
+  Future<void> _startProfileCreation() async {
+    if (_usernameController.text.trim().isEmpty ||
+        _pinController.text.trim().isEmpty) {
       CustomMessage.show(
         context: context,
-        message: "Profile created successfully!",
-        type: MessageType.success,
+        message: "Username and Unlock-PIN cannot be empty.",
+        type: MessageType.error,
       );
-      const Duration(seconds: 2);
-
-      await Navigator.pushReplacement(
-        context,
-        SlideFadePageRoute(page: LoginProcess()),
-      );
+      return;
     }
+
+    if (_pinController.text.length != 6) {
+      CustomMessage.show(
+        context: context,
+        message: "PIN must be exactly 6 digits.",
+        type: MessageType.error,
+      );
+      return;
+    }
+
+    final canProceed = await _handleProfileImage();
+    if (!canProceed) return;
+
     setState(() {
-      _isCreating = false;
+      _isCreating = true;
       _progress = 0.0;
     });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString("userId");
+
+      if (userId == null) {
+        CustomMessage.show(
+          context: context,
+          message: "User ID not found. Please try again.",
+          type: MessageType.error,
+        );
+        return;
+      }
+
+      String imageUrl;
+      String imageType;
+
+      if (_profileImage != null) {
+        final storageRef = FirebaseStorage.instance.ref().child(
+          "UsersProfileImages/user_upd_$userId.jpg",
+        );
+
+        await storageRef.putFile(_profileImage!);
+        imageUrl = await storageRef.getDownloadURL();
+        imageType = "uploaded";
+      } else {
+        final defaultRef = FirebaseStorage.instance.ref().child(
+          "UsersProfileImages/user_def_default.jpg",
+        );
+
+        try {
+          imageUrl = await defaultRef.getDownloadURL();
+        } catch (e) {
+          final byteData = await rootBundle.load('assets/user_icon.png');
+          final buffer = byteData.buffer.asUint8List();
+          await defaultRef.putData(buffer);
+          imageUrl = await defaultRef.getDownloadURL();
+        }
+
+        imageType = "default";
+      }
+
+      final progressFuture = _simulateProgress();
+
+      await FirebaseFirestore.instance.collection("user").doc(userId).set({
+        'username': _usernameController.text.trim(),
+        'unlock_pin': _pinController.text.trim(),
+        'profile_img_path': imageUrl,
+        'profile_img_type': imageType,
+      }, SetOptions(merge: true));
+
+      await progressFuture;
+
+      if (mounted) {
+        CustomMessage.show(
+          context: context,
+          message: "Profile Created Successfully!",
+          type: MessageType.success,
+        );
+
+        await Future.delayed(const Duration(seconds: 2));
+
+        Navigator.pushReplacement(
+          context,
+          SlideFadePageRoute(page: const LoginProcess()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomMessage.show(
+          context: context,
+          message: "Failed to create profile: ${e.toString()}",
+          type: MessageType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCreating = false;
+          _progress = 0.0;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: Color(0xFF020912),
+        statusBarColor: const Color(0xFF020912),
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Color(0xFF020912),
+        backgroundColor: const Color(0xFF020912),
         body: Stack(
           children: [
             Positioned.fill(
@@ -434,7 +670,6 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
               ),
             ),
             SafeArea(
-              top: true,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
@@ -443,7 +678,6 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                     const SizedBox(height: 30.0),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Image.asset(
                           "assets/logo/cine_fetch_logo_tr.png",
@@ -455,12 +689,9 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                     ),
                     Expanded(
                       child: Container(
-                        width: double.infinity,
-                        height: double.infinity,
                         padding: const EdgeInsets.all(20.0),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Stack(
                               alignment: Alignment.center,
@@ -471,9 +702,9 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                                       ? Container(
                                           width: 140,
                                           height: 140,
-                                          decoration: BoxDecoration(
+                                          decoration: const BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: const Color.fromARGB(
+                                            color: Color.fromARGB(
                                               255,
                                               108,
                                               160,
@@ -562,7 +793,7 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         shape: BoxShape.circle,
-                                        boxShadow: [
+                                        boxShadow: const [
                                           BoxShadow(
                                             color: Colors.black26,
                                             blurRadius: 4,
@@ -601,13 +832,12 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                               suffixIcon: true,
                             ),
                             const SizedBox(height: 40.0),
-
                             if (_isCreating) ...[
                               LinearProgressIndicator(
                                 value: _progress,
                                 minHeight: 8,
                                 backgroundColor: Colors.white12,
-                                valueColor: AlwaysStoppedAnimation<Color>(
+                                valueColor: const AlwaysStoppedAnimation<Color>(
                                   Color(0xFF1A73E8),
                                 ),
                               ),
@@ -626,39 +856,7 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: () async {
-                                    if (_profileImage == null) {
-                                      CustomMessage.show(
-                                        context: context,
-                                        message:
-                                            "Please select a profile photo.",
-                                        type: MessageType.error,
-                                      );
-                                      return;
-                                    }
-                                    if (_usernameController.text
-                                            .trim()
-                                            .isEmpty ||
-                                        _pinController.text.trim().isEmpty) {
-                                      CustomMessage.show(
-                                        context: context,
-                                        message:
-                                            "Username and Unlock-PIN cannot be empty.",
-                                        type: MessageType.error,
-                                      );
-                                      return;
-                                    }
-                                    if (_pinController.text.length != 6) {
-                                      CustomMessage.show(
-                                        context: context,
-                                        message:
-                                            "PIN must be exactly 6 digits.",
-                                        type: MessageType.error,
-                                      );
-                                      return;
-                                    }
-                                    await _startProfileCreation();
-                                  },
+                                  onPressed: _startProfileCreation,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF1A73E8),
                                     padding: const EdgeInsets.symmetric(

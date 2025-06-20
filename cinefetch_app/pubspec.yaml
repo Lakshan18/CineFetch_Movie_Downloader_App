@@ -39,8 +39,10 @@ dependencies:
   simple_animations: ^5.2.0
   firebase_core: ^3.14.0
   firebase_auth: ^5.6.0
+  firebase_storage: ^12.4.7
   cloud_firestore: ^5.6.9
   crypto: ^3.0.3
+  shared_preferences: ^2.0.0
   # flutter_keyboard_visibility: ^5.3.0
 
 dev_dependencies:
