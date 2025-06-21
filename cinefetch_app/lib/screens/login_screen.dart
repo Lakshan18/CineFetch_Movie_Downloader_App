@@ -21,7 +21,7 @@
 // }
 
 // class UserLoginProcess {
-  
+
 //   final prefs = SharedPreferences.getInstance();
 
 //   // Password hashing function
@@ -380,8 +380,6 @@
 //   }
 // }
 
-
-
 import 'package:cinefetch_app/animation/custom_animation.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/components/custom_textfield.dart';
@@ -531,7 +529,8 @@ class _LoginScreenState extends State<LoginProcess> {
   }
 
   Future<void> _loadRememberedCredentials() async {
-    final (username, hashedPassword) = await _userLoginProcess.getRememberedCredentials();
+    final (username, hashedPassword) = await _userLoginProcess
+        .getRememberedCredentials();
     if (username != null && hashedPassword != null) {
       setState(() {
         usernameController.text = username;
@@ -607,7 +606,8 @@ class _LoginScreenState extends State<LoginProcess> {
                               Row(
                                 children: [
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       CustomAnimation(
                                         0.6,
@@ -667,18 +667,27 @@ class _LoginScreenState extends State<LoginProcess> {
                                 0.7,
                                 type: AnimationType.swing,
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
                                         Checkbox(
                                           value: _rememberMe,
-                                          onChanged: (value) => setState(() => _rememberMe = value ?? false),
-                                          fillColor: WidgetStateProperty.resolveWith<Color>(
-                                            (states) => states.contains(WidgetState.selected)
-                                                ? const Color(0xFF1579FC)
-                                                : Colors.transparent,
+                                          onChanged: (value) => setState(
+                                            () => _rememberMe = value ?? false,
                                           ),
+                                          fillColor:
+                                              WidgetStateProperty.resolveWith<
+                                                Color
+                                              >(
+                                                (states) =>
+                                                    states.contains(
+                                                      WidgetState.selected,
+                                                    )
+                                                    ? const Color(0xFF1579FC)
+                                                    : Colors.transparent,
+                                              ),
                                         ),
                                         const Text(
                                           "Remember me",
@@ -691,7 +700,14 @@ class _LoginScreenState extends State<LoginProcess> {
                                       ],
                                     ),
                                     TextButton(
-                                      onPressed: () => print("Forgot Password"),
+                                      onPressed: () => {
+                                        // Navigator.push(
+                                        //   context,
+                                        //   SlideFadePageRoute(
+                                        //     page: const ForgotPasswordScreen(),
+                                        //   ),
+                                        // ),
+                                      },
                                       child: const Text(
                                         "Forgot Password?",
                                         style: TextStyle(
@@ -718,14 +734,15 @@ class _LoginScreenState extends State<LoginProcess> {
                                         message: "Logging in...",
                                         type: MessageType.info,
                                       );
-                                      
+
                                       try {
-                                        await _userLoginProcess.loginWithFirestore(
-                                          context,
-                                          usernameController.text,
-                                          passwordController.text,
-                                          _rememberMe,
-                                        );
+                                        await _userLoginProcess
+                                            .loginWithFirestore(
+                                              context,
+                                              usernameController.text,
+                                              passwordController.text,
+                                              _rememberMe,
+                                            );
                                       } catch (e) {
                                         if (context.mounted) {
                                           CustomMessage.show(
@@ -738,7 +755,9 @@ class _LoginScreenState extends State<LoginProcess> {
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF1A73E8),
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
                                     ),
                                     child: const Text(
                                       "LOGIN",
@@ -788,7 +807,8 @@ class _LoginScreenState extends State<LoginProcess> {
                                 ),
                               ),
                               SizedBox(
-                                height: MediaQuery.of(context).viewInsets.bottom > 0
+                                height:
+                                    MediaQuery.of(context).viewInsets.bottom > 0
                                     ? MediaQuery.of(context).viewInsets.bottom
                                     : 20.0,
                               ),

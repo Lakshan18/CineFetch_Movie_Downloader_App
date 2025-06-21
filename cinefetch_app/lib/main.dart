@@ -10,11 +10,11 @@ void main() async {
   await Firebase.initializeApp();
 
   runApp(
-    const MyApp(),
-    // DevicePreview(
-    //   enabled: true,
-    //   builder: (context) => const MyApp(),
-    // ),
+    // const MyApp(),
+    DevicePreview(
+      enabled: true,
+      builder: (context) => const MyApp(),
+    ),
   );
 }
 

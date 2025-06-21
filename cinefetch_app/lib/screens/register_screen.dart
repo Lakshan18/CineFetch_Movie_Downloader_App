@@ -13,7 +13,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -106,7 +105,7 @@ class UserRegisterProcess {
       final verificationCode = _generateRandomCode();
 
       await FirebaseFirestore.instance
-          .collection("users")
+          .collection("user")
           .doc(credential.user?.uid)
           .set({
         "firstName": firstName,
@@ -119,13 +118,14 @@ class UserRegisterProcess {
       });
 
       if (context.mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           SlideFadePageRoute(
             page: EmailVerificationScreen(
               email: email,
               userId: credential.user?.uid ?? "",
             ),
           ),
+          (route) => false,
         );
       }
     } on FirebaseAuthException catch (e) {

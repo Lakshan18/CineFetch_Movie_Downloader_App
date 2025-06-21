@@ -1,10 +1,9 @@
 // import 'dart:async';
-
+// import 'dart:math';
 // import 'package:cinefetch_app/screens/create_profile.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:flutter/material.dart';
 // import 'package:cinefetch_app/components/custom_message.dart';
-// import 'package:cinefetch_app/components/custom_pin_textfield.dart';
 // import 'package:cinefetch_app/routes/custom_page_route.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 
@@ -19,12 +18,13 @@
 //   });
 
 //   @override
-//   State<EmailVerificationScreen> createState() =>
-//       _EmailVerificationScreenState();
+//   State<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
 // }
 
 // class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-//   final _verificationCodeController = TextEditingController();
+//   final List<TextEditingController> _digitControllers = 
+//       List.generate(6, (index) => TextEditingController());
+//   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
 //   bool _isVerifying = false;
 //   bool _isResending = false;
 //   int _resendTimer = 30;
@@ -34,11 +34,23 @@
 //   void initState() {
 //     super.initState();
 //     _startResendTimer();
+//     for (int i = 0; i < 5; i++) {
+//       _focusNodes[i].addListener(() {
+//         if (_focusNodes[i].hasFocus && _digitControllers[i].text.isEmpty) {
+//           _digitControllers[i].text = " ";
+//         }
+//       });
+//     }
 //   }
 
 //   @override
 //   void dispose() {
-//     _verificationCodeController.dispose();
+//     for (var controller in _digitControllers) {
+//       controller.dispose();
+//     }
+//     for (var node in _focusNodes) {
+//       node.dispose();
+//     }
 //     _timer.cancel();
 //     super.dispose();
 //   }
@@ -53,8 +65,22 @@
 //     });
 //   }
 
-//   Future<void> _verifyEmail() async {
-//     if (_verificationCodeController.text.length != 6) {
+//   void _onDigitChanged(String value, int index) {
+//     if (value.length == 1 && index < 5) {
+//       _focusNodes[index].unfocus();
+//       FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+//     } else if (value.isEmpty && index > 0) {
+//       _focusNodes[index].unfocus();
+//       FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+//     }
+//   }
+
+//   Future<void> _verifyCode() async {
+//     final verificationCode = _digitControllers
+//         .map((controller) => controller.text.trim())
+//         .join("");
+
+//     if (verificationCode.length != 6) {
 //       CustomMessage.show(
 //         context: context,
 //         message: "Please enter a valid 6-digit code",
@@ -66,29 +92,23 @@
 //     setState(() => _isVerifying = true);
 
 //     try {
-//       // Get the stored code from Firestore
 //       final doc = await FirebaseFirestore.instance
 //           .collection('user')
 //           .doc(widget.userId)
 //           .get();
 
 //       final storedCode = doc.data()?['verificationCode'] ?? '';
-//       final enteredCode = _verificationCodeController.text.trim();
 
-//       if (storedCode == enteredCode) {
-//         // Mark as verified
+//       if (storedCode == verificationCode) {
 //         await FirebaseFirestore.instance
 //             .collection('user')
 //             .doc(widget.userId)
 //             .update({
 //               'emailVerified': true,
-//               'verificationCode': FieldValue.delete(), // Remove the code
+//               'verificationCode': FieldValue.delete(),
 //             });
 
-//         // Optional: Verify with Firebase Auth too
-//         await FirebaseAuth.instance.currentUser?.verifyBeforeUpdateEmail(
-//           widget.email,
-//         );
+//         await FirebaseAuth.instance.currentUser?.reload();
 
 //         if (mounted) {
 //           Navigator.pushReplacement(
@@ -116,56 +136,6 @@
 //     }
 //   }
 
-//   // Future<void> _verifyEmail() async {
-//   //   if (_verificationCodeController.text.length != 6) {
-//   //     CustomMessage.show(
-//   //       context: context,
-//   //       message: "Please enter a valid 6-digit code",
-//   //       type: MessageType.error,
-//   //     );
-//   //     return;
-//   //   }
-
-//   //   setState(() => _isVerifying = true);
-
-//   //   try {
-//   //     // In a real app, you would verify the code with your backend
-//   //     // For Firebase Email Link verification, we check if email is verified
-//   //     final user = FirebaseAuth.instance.currentUser;
-
-//   //     if (user != null && user.emailVerified) {
-//   //       // Update Firestore that email is verified
-//   //       await FirebaseFirestore.instance
-//   //           .collection('user')
-//   //           .doc(widget.userId)
-//   //           .update({'emailVerified': true});
-
-//   //       if (mounted) {
-//   //         Navigator.pushReplacement(
-//   //           context,
-//   //           SlideFadePageRoute(page: const CreateProfileProcess()),
-//   //         );
-//   //       }
-//   //     } else {
-//   //       CustomMessage.show(
-//   //         context: context,
-//   //         message: "Email not verified yet. Please check your inbox.",
-//   //         type: MessageType.error,
-//   //       );
-//   //     }
-//   //   } catch (e) {
-//   //     CustomMessage.show(
-//   //       context: context,
-//   //       message: "Verification failed: ${e.toString()}",
-//   //       type: MessageType.error,
-//   //     );
-//   //   } finally {
-//   //     if (mounted) {
-//   //       setState(() => _isVerifying = false);
-//   //     }
-//   //   }
-//   // }
-
 //   Future<void> _resendVerificationCode() async {
 //     setState(() {
 //       _isResending = true;
@@ -173,20 +143,23 @@
 //     });
 
 //     try {
-//       final user = FirebaseAuth.instance.currentUser;
-//       if (user != null) {
-//         await user.sendEmailVerification();
-//         CustomMessage.show(
-//           context: context,
-//           message: "Verification email resent!",
-//           type: MessageType.success,
-//         );
-//         _startResendTimer();
-//       }
+//       final newCode = (100000 + Random().nextInt(900000)).toString();
+
+//       await FirebaseFirestore.instance
+//           .collection('user')
+//           .doc(widget.userId)
+//           .update({'verificationCode': newCode});
+
+//       CustomMessage.show(
+//         context: context,
+//         message: "New verification code sent!",
+//         type: MessageType.success,
+//       );
+//       _startResendTimer();
 //     } catch (e) {
 //       CustomMessage.show(
 //         context: context,
-//         message: "Failed to resend: ${e.toString()}",
+//         message: "Failed to resend code: ${e.toString()}",
 //         type: MessageType.error,
 //       );
 //     } finally {
@@ -229,7 +202,7 @@
 //                       ),
 //                     ],
 //                   ),
-//                   const SizedBox(height: 40),
+//                   const SizedBox(height: 80),
 //                   Text(
 //                     "Verify Your Email",
 //                     style: TextStyle(
@@ -249,20 +222,59 @@
 //                     ),
 //                   ),
 //                   const SizedBox(height: 40),
-//                   Center(
-//                     child: MyPinTextField(
-//                       textfieldinfo: "",
-//                       controller: _verificationCodeController,
-//                       hinttext: "Enter 6-digit code",
-//                       obsecuretext: false,
-//                       suffixIcon: false,
-//                     ),
+                  
+//                   // 6-Digit Code Input Boxes
+//                   Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+//                     children: List.generate(6, (index) {
+//                       return SizedBox(
+//                         width: 50,
+//                         height: 60,
+//                         child: TextField(
+//                           controller: _digitControllers[index],
+//                           focusNode: _focusNodes[index],
+//                           textAlign: TextAlign.center,
+//                           keyboardType: TextInputType.number,
+//                           maxLength: 1,
+//                           style: const TextStyle(
+//                             fontSize: 24,
+//                             color: Colors.white,
+//                             fontFamily: "Quicksand",
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                           decoration: InputDecoration(
+//                             counterText: '',
+//                             filled: true,
+//                             fillColor: Colors.white.withOpacity(0.1),
+//                             border: OutlineInputBorder(
+//                               borderRadius: BorderRadius.circular(8),
+//                               borderSide: BorderSide.none,
+//                             ),
+//                             enabledBorder: OutlineInputBorder(
+//                               borderRadius: BorderRadius.circular(8),
+//                               borderSide: BorderSide(
+//                                 color: Colors.white.withOpacity(0.3),
+//                               ),
+//                             ),
+//                             focusedBorder: OutlineInputBorder(
+//                               borderRadius: BorderRadius.circular(8),
+//                               borderSide: const BorderSide(
+//                                 color: Color(0xFF1A73E8),
+//                                 width: 2,
+//                               ),
+//                             ),
+//                           ),
+//                           onChanged: (value) => _onDigitChanged(value, index),
+//                         ),
+//                       );
+//                     }),
 //                   ),
-//                   const SizedBox(height: 30),
+                  
+//                   const SizedBox(height: 40),
 //                   SizedBox(
 //                     width: double.infinity,
 //                     child: ElevatedButton(
-//                       onPressed: _isVerifying ? null : _verifyEmail,
+//                       onPressed: _isVerifying ? null : _verifyCode,
 //                       style: ElevatedButton.styleFrom(
 //                         backgroundColor: const Color(0xFF1A73E8),
 //                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -278,6 +290,7 @@
 //                               "VERIFY",
 //                               style: TextStyle(
 //                                 fontSize: 18,
+//                                 color: Colors.white,
 //                                 fontFamily: "Quicksand",
 //                                 fontWeight: FontWeight.w600,
 //                               ),
@@ -321,8 +334,8 @@ import 'dart:math';
 import 'package:cinefetch_app/screens/create_profile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
-import 'package:cinefetch_app/components/custom_pin_textfield.dart';
 import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -341,7 +354,8 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  final _verificationCodeController = TextEditingController();
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isVerifying = false;
   bool _isResending = false;
   int _resendTimer = 30;
@@ -351,11 +365,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   void initState() {
     super.initState();
     _startResendTimer();
+    _focusNodes[0].requestFocus(); // Auto-focus first field
   }
 
   @override
   void dispose() {
-    _verificationCodeController.dispose();
+    for (var c in _controllers) c.dispose();
+    for (var f in _focusNodes) f.dispose();
     _timer.cancel();
     super.dispose();
   }
@@ -370,8 +386,23 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
   }
 
+  void _handleInput(String value, int index) {
+    if (value.isNotEmpty) {
+      _controllers[index].text = value[value.length - 1]; // Take last character
+      if (index < 5) {
+        _focusNodes[index].unfocus();
+        _focusNodes[index + 1].requestFocus();
+      }
+    } else if (value.isEmpty && index > 0) {
+      _focusNodes[index].unfocus();
+      _focusNodes[index - 1].requestFocus();
+    }
+  }
+
   Future<void> _verifyCode() async {
-    if (_verificationCodeController.text.length != 6) {
+    final code = _controllers.map((c) => c.text).join();
+    
+    if (code.length != 6) {
       CustomMessage.show(
         context: context,
         message: "Please enter a valid 6-digit code",
@@ -384,26 +415,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('users')
+          .collection('user')
           .doc(widget.userId)
           .get();
 
-      final storedCode = doc.data()?['verificationCode'] ?? '';
-      final enteredCode = _verificationCodeController.text.trim();
-
-      if (storedCode == enteredCode) {
-        // Mark as verified
+      if (doc.data()?['verificationCode'] == code) {
         await FirebaseFirestore.instance
-            .collection('users')
+            .collection('user')
             .doc(widget.userId)
             .update({
               'emailVerified': true,
               'verificationCode': FieldValue.delete(),
             });
 
-        // Verify with Firebase Auth
         await FirebaseAuth.instance.currentUser?.reload();
-        
+
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -424,13 +450,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         type: MessageType.error,
       );
     } finally {
-      if (mounted) {
-        setState(() => _isVerifying = false);
-      }
+      if (mounted) setState(() => _isVerifying = false);
     }
   }
 
-  Future<void> _resendVerificationCode() async {
+  Future<void> _resendCode() async {
     setState(() {
       _isResending = true;
       _resendTimer = 30;
@@ -438,20 +462,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     try {
       final newCode = (100000 + Random().nextInt(900000)).toString();
-      
       await FirebaseFirestore.instance
-          .collection('users')
+          .collection('user')
           .doc(widget.userId)
-          .update({
-            'verificationCode': newCode,
-          });
+          .update({'verificationCode': newCode});
 
       CustomMessage.show(
         context: context,
         message: "New verification code sent!",
         type: MessageType.success,
       );
-      _startResendTimer();
     } catch (e) {
       CustomMessage.show(
         context: context,
@@ -459,9 +479,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         type: MessageType.error,
       );
     } finally {
-      if (mounted) {
-        setState(() => _isResending = false);
-      }
+      if (mounted) setState(() => _isResending = false);
+      _startResendTimer();
     }
   }
 
@@ -498,7 +517,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 80),
                   Text(
                     "Verify Your Email",
                     style: TextStyle(
@@ -518,16 +537,58 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  Center(
-                    child: MyPinTextField(
-                      textfieldinfo: "",
-                      controller: _verificationCodeController,
-                      hinttext: "Enter 6-digit code",
-                      obsecuretext: false,
-                      suffixIcon: false,
-                    ),
+                  
+                  // 6-Digit Code Input
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(6, (index) {
+                      return SizedBox(
+                        width: 50,
+                        height: 60,
+                        child: TextField(
+                          controller: _controllers[index],
+                          focusNode: _focusNodes[index],
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          maxLength: 1,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            color: Colors.white,
+                            fontFamily: "Quicksand",
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.1),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF1A73E8),
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) => _handleInput(value, index),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                        ),
+                      );
+                    }),
                   ),
-                  const SizedBox(height: 30),
+                  
+                  const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -547,6 +608,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                               "VERIFY",
                               style: TextStyle(
                                 fontSize: 18,
+                                color: Colors.white,
                                 fontFamily: "Quicksand",
                                 fontWeight: FontWeight.w600,
                               ),
@@ -558,7 +620,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     child: TextButton(
                       onPressed: _resendTimer > 0 || _isResending
                           ? null
-                          : _resendVerificationCode,
+                          : _resendCode,
                       child: Text(
                         _resendTimer > 0
                             ? "Resend code in $_resendTimer seconds"
