@@ -3,6 +3,7 @@
 // import 'package:cinefetch_app/screens/create_profile.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:flutter/material.dart';
+// import 'package:flutter/services.dart';
 // import 'package:cinefetch_app/components/custom_message.dart';
 // import 'package:cinefetch_app/routes/custom_page_route.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
@@ -22,9 +23,8 @@
 // }
 
 // class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-//   final List<TextEditingController> _digitControllers = 
-//       List.generate(6, (index) => TextEditingController());
-//   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
+//   final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+//   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 //   bool _isVerifying = false;
 //   bool _isResending = false;
 //   int _resendTimer = 30;
@@ -34,23 +34,13 @@
 //   void initState() {
 //     super.initState();
 //     _startResendTimer();
-//     for (int i = 0; i < 5; i++) {
-//       _focusNodes[i].addListener(() {
-//         if (_focusNodes[i].hasFocus && _digitControllers[i].text.isEmpty) {
-//           _digitControllers[i].text = " ";
-//         }
-//       });
-//     }
+//     _focusNodes[0].requestFocus(); // Auto-focus first field
 //   }
 
 //   @override
 //   void dispose() {
-//     for (var controller in _digitControllers) {
-//       controller.dispose();
-//     }
-//     for (var node in _focusNodes) {
-//       node.dispose();
-//     }
+//     for (var c in _controllers) c.dispose();
+//     for (var f in _focusNodes) f.dispose();
 //     _timer.cancel();
 //     super.dispose();
 //   }
@@ -65,22 +55,23 @@
 //     });
 //   }
 
-//   void _onDigitChanged(String value, int index) {
-//     if (value.length == 1 && index < 5) {
-//       _focusNodes[index].unfocus();
-//       FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+//   void _handleInput(String value, int index) {
+//     if (value.isNotEmpty) {
+//       _controllers[index].text = value[value.length - 1]; // Take last character
+//       if (index < 5) {
+//         _focusNodes[index].unfocus();
+//         _focusNodes[index + 1].requestFocus();
+//       }
 //     } else if (value.isEmpty && index > 0) {
 //       _focusNodes[index].unfocus();
-//       FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+//       _focusNodes[index - 1].requestFocus();
 //     }
 //   }
 
 //   Future<void> _verifyCode() async {
-//     final verificationCode = _digitControllers
-//         .map((controller) => controller.text.trim())
-//         .join("");
-
-//     if (verificationCode.length != 6) {
+//     final code = _controllers.map((c) => c.text).join();
+    
+//     if (code.length != 6) {
 //       CustomMessage.show(
 //         context: context,
 //         message: "Please enter a valid 6-digit code",
@@ -97,9 +88,7 @@
 //           .doc(widget.userId)
 //           .get();
 
-//       final storedCode = doc.data()?['verificationCode'] ?? '';
-
-//       if (storedCode == verificationCode) {
+//       if (doc.data()?['verificationCode'] == code) {
 //         await FirebaseFirestore.instance
 //             .collection('user')
 //             .doc(widget.userId)
@@ -130,13 +119,11 @@
 //         type: MessageType.error,
 //       );
 //     } finally {
-//       if (mounted) {
-//         setState(() => _isVerifying = false);
-//       }
+//       if (mounted) setState(() => _isVerifying = false);
 //     }
 //   }
 
-//   Future<void> _resendVerificationCode() async {
+//   Future<void> _resendCode() async {
 //     setState(() {
 //       _isResending = true;
 //       _resendTimer = 30;
@@ -144,7 +131,6 @@
 
 //     try {
 //       final newCode = (100000 + Random().nextInt(900000)).toString();
-
 //       await FirebaseFirestore.instance
 //           .collection('user')
 //           .doc(widget.userId)
@@ -155,7 +141,6 @@
 //         message: "New verification code sent!",
 //         type: MessageType.success,
 //       );
-//       _startResendTimer();
 //     } catch (e) {
 //       CustomMessage.show(
 //         context: context,
@@ -163,9 +148,8 @@
 //         type: MessageType.error,
 //       );
 //     } finally {
-//       if (mounted) {
-//         setState(() => _isResending = false);
-//       }
+//       if (mounted) setState(() => _isResending = false);
+//       _startResendTimer();
 //     }
 //   }
 
@@ -223,7 +207,7 @@
 //                   ),
 //                   const SizedBox(height: 40),
                   
-//                   // 6-Digit Code Input Boxes
+//                   // 6-Digit Code Input
 //                   Row(
 //                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
 //                     children: List.generate(6, (index) {
@@ -231,7 +215,7 @@
 //                         width: 50,
 //                         height: 60,
 //                         child: TextField(
-//                           controller: _digitControllers[index],
+//                           controller: _controllers[index],
 //                           focusNode: _focusNodes[index],
 //                           textAlign: TextAlign.center,
 //                           keyboardType: TextInputType.number,
@@ -264,7 +248,10 @@
 //                               ),
 //                             ),
 //                           ),
-//                           onChanged: (value) => _onDigitChanged(value, index),
+//                           onChanged: (value) => _handleInput(value, index),
+//                           inputFormatters: [
+//                             FilteringTextInputFormatter.digitsOnly,
+//                           ],
 //                         ),
 //                       );
 //                     }),
@@ -302,7 +289,7 @@
 //                     child: TextButton(
 //                       onPressed: _resendTimer > 0 || _isResending
 //                           ? null
-//                           : _resendVerificationCode,
+//                           : _resendCode,
 //                       child: Text(
 //                         _resendTimer > 0
 //                             ? "Resend code in $_resendTimer seconds"
@@ -329,24 +316,28 @@
 
 
 
+
 import 'dart:async';
 import 'dart:math';
 import 'package:cinefetch_app/screens/create_profile.dart';
+import 'package:cinefetch_app/screens/new_password_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
   final String userId;
+  final bool isPasswordReset;
 
   const EmailVerificationScreen({
     super.key,
     required this.email,
     required this.userId,
+    this.isPasswordReset = false,
   });
 
   @override
@@ -365,7 +356,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   void initState() {
     super.initState();
     _startResendTimer();
-    _focusNodes[0].requestFocus(); // Auto-focus first field
+    _focusNodes[0].requestFocus();
   }
 
   @override
@@ -388,7 +379,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   void _handleInput(String value, int index) {
     if (value.isNotEmpty) {
-      _controllers[index].text = value[value.length - 1]; // Take last character
+      _controllers[index].text = value[value.length - 1];
       if (index < 5) {
         _focusNodes[index].unfocus();
         _focusNodes[index + 1].requestFocus();
@@ -420,21 +411,37 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           .get();
 
       if (doc.data()?['verificationCode'] == code) {
+        // Clear verification code
         await FirebaseFirestore.instance
             .collection('user')
             .doc(widget.userId)
             .update({
-              'emailVerified': true,
               'verificationCode': FieldValue.delete(),
+              if (!widget.isPasswordReset) 'emailVerified': true,
             });
 
-        await FirebaseAuth.instance.currentUser?.reload();
-
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            SlideFadePageRoute(page: const CreateProfileProcess()),
-          );
+        if (widget.isPasswordReset) {
+          // Navigate to password reset screen
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              SlideFadePageRoute(
+                page: NewPasswordScreen(
+                  userId: widget.userId,
+                  email: widget.email,
+                ),
+              ),
+            );
+          }
+        } else {
+          // Original registration flow
+          await FirebaseAuth.instance.currentUser?.reload();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              SlideFadePageRoute(page: const CreateProfileProcess()),
+            );
+          }
         }
       } else {
         CustomMessage.show(
@@ -519,7 +526,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                   const SizedBox(height: 80),
                   Text(
-                    "Verify Your Email",
+                    widget.isPasswordReset 
+                        ? "Verify Your Identity" 
+                        : "Verify Your Email",
                     style: TextStyle(
                       fontSize: 32,
                       fontFamily: "Rosario",
@@ -529,7 +538,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                   const SizedBox(height: 15),
                   Text(
-                    "We sent a 6-digit code to ${widget.email}",
+                    widget.isPasswordReset
+                        ? "We sent a 6-digit code to ${widget.email} to verify your identity"
+                        : "We sent a 6-digit code to ${widget.email}",
                     style: TextStyle(
                       fontSize: 16,
                       fontFamily: "Quicksand",
@@ -604,9 +615,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           ? const CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation(Colors.white),
                             )
-                          : const Text(
-                              "VERIFY",
-                              style: TextStyle(
+                          : Text(
+                              widget.isPasswordReset ? "VERIFY IDENTITY" : "VERIFY EMAIL",
+                              style: const TextStyle(
                                 fontSize: 18,
                                 color: Colors.white,
                                 fontFamily: "Quicksand",

@@ -19,41 +19,49 @@
 //   },
 // });
 
-// exports.sendVerificationCode = onDocumentCreated({
-//   document: "users/{userId}",
-//   region: "us-central1",
-// }, async (event) => {
-//   try {
-//     const snapshot = event.data;
-//     const userData = snapshot.data();
+// exports.sendVerificationEmail = onDocumentCreated(
+//   {
+//     document: "user/{userId}",
+//     region: "us-central1",
+//   }, 
+//   async (event) => {
+//     try {
+//       const snapshot = event.data;
+//       const userData = snapshot.data();
 
-//     const mailOptions = {
-//       from: `"CineFetch" <${gmailEmail.value()}>`,
-//       to: userData.email,
-//       subject: "Your 6-Digit Verification Code",
-//       text: `Your verification code is: ${userData.verificationCode}`,
-//       html: `
-//         <div style="font-family: Arial, sans-serif;">
-//           <h2 style="color: #1a73e8;">CineFetch Verification</h2>
-//           <p>Your verification code is:</p>
-//           <div style="font-size: 24px; font-weight: bold; margin: 20px 0;">
-//             ${userData.verificationCode}
+//       if (!userData.email || !userData.verificationCode) {
+//         console.log("No email or verification code found");
+//         return;
+//       }
+
+//       const mailOptions = {
+//         from: `CineFetch <${gmailEmail.value()}>`,
+//         to: userData.email,
+//         subject: "Your 6-Digit Verification Code",
+//         text: `Your verification code is: ${userData.verificationCode}`,
+//         html: `
+//           <div style="font-family: Arial, sans-serif;">
+//             <h2 style="color: #1a73e8;">CineFetch Verification</h2>
+//             <p>Your verification code is:</p>
+//             <div style="font-size: 24px; font-weight: bold; margin: 20px 0;">
+//               ${userData.verificationCode}
+//             </div>
+//             <p>This code will expire in 30 minutes.</p>
 //           </div>
-//           <p>This code will expire in 30 minutes.</p>
-//         </div>
-//       `,
-//     };
+//         `,
+//       };
 
-//     await transporter.sendMail(mailOptions);
-//     console.log(`Verification email sent to ${userData.email}`);
-//   } catch (error) {
-//     console.error("Failed to send verification email:", error);
-//     throw error;
+//       await transporter.sendMail(mailOptions);
+//       console.log(`Verification email sent to ${userData.email}`);
+//     } catch (error) {
+//       console.error("Failed to send verification email:", error);
+//     }
 //   }
-// });
+// );
 
 
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+
+const { onDocumentUpdated , onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const nodemailer = require("nodemailer");
@@ -61,11 +69,10 @@ const nodemailer = require("nodemailer");
 // Initialize Firebase
 initializeApp();
 
-// Define configuration parameters
+// Reuse your existing email configuration
 const gmailEmail = defineString("GMAIL_EMAIL");
 const gmailPassword = defineString("GMAIL_PASSWORD");
 
-// Create email transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -78,38 +85,70 @@ exports.sendVerificationEmail = onDocumentCreated(
   {
     document: "user/{userId}",
     region: "us-central1",
-  }, 
+  },
   async (event) => {
-    try {
-      const snapshot = event.data;
-      const userData = snapshot.data();
-
-      if (!userData.email || !userData.verificationCode) {
-        console.log("No email or verification code found");
-        return;
-      }
-
-      const mailOptions = {
-        from: `CineFetch <${gmailEmail.value()}>`,
-        to: userData.email,
-        subject: "Your 6-Digit Verification Code",
-        text: `Your verification code is: ${userData.verificationCode}`,
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h2 style="color: #1a73e8;">CineFetch Verification</h2>
-            <p>Your verification code is:</p>
-            <div style="font-size: 24px; font-weight: bold; margin: 20px 0;">
-              ${userData.verificationCode}
-            </div>
-            <p>This code will expire in 30 minutes.</p>
-          </div>
-        `,
-      };
-
-      await transporter.sendMail(mailOptions);
-      console.log(`Verification email sent to ${userData.email}`);
-    } catch (error) {
-      console.error("Failed to send verification email:", error);
-    }
+    await handleEmailSending(event, "registration");
   }
 );
+
+exports.sendPasswordResetEmail = onDocumentUpdated(
+  {
+    document: "user/{userId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    await handleEmailSending(event, "passwordReset");
+  }
+);
+
+async function handleEmailSending(event, type) {
+  try {
+    const snapshot = type === "registration" ? event.data : event.data.after;
+    const userData = snapshot.data();
+
+    // For password reset, check if this is actually a reset request
+    if (type === "passwordReset" && !userData.isPasswordReset) {
+      return;
+    }
+
+    if (!userData.email || !userData.verificationCode) {
+      console.log("No email or verification code found");
+      return;
+    }
+
+    const subject = type === "registration"
+      ? "Your 6-Digit Verification Code"
+      : "Password Reset Verification Code";
+
+    const header = type === "registration"
+      ? "CineFetch Verification"
+      : "CineFetch Password Reset";
+
+    const additionalText = type === "passwordReset"
+      ? "<p>If you didn't request this, please ignore this email.</p>"
+      : "";
+
+    const mailOptions = {
+      from: `CineFetch <${gmailEmail.value()}>`,
+      to: userData.email,
+      subject: subject,
+      text: `Your verification code is: ${userData.verificationCode}`,
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2 style="color: #1a73e8;">${header}</h2>
+          <p>Your verification code is:</p>
+          <div style="font-size: 24px; font-weight: bold; margin: 20px 0;">
+            ${userData.verificationCode}
+          </div>
+          <p>This code will expire in 30 minutes.</p>
+          ${additionalText}
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Email (${type}) sent to ${userData.email}`);
+  } catch (error) {
+    console.error(`Failed to send ${type} email:`, error);
+  }
+}
