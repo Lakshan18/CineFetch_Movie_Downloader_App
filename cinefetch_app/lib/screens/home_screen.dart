@@ -5,6 +5,7 @@ import '../components/filter_tag.dart';
 import '../components/movie_card.dart';
 import '../components/pagination_controls.dart';
 import '../models/movie.dart';
+import '../repositories/movie_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final _searchResultController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final MovieRepository _movieRepository = MovieRepository();
 
   bool _showFilters = false;
   bool _isSearching = false;
@@ -24,18 +26,38 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final List<String> _toggleLabels = ["Latest", "Featured", "Trending"];
   List<Movie> allMovies = [];
-  List<Movie> displayedMovies = [];
+  List<Movie> filteredMovies = [];
+  List<Movie> paginatedMovies = [];
   List<Movie> searchResults = [];
   int currentPage = 1;
   final int moviesPerPage = 8;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _updateMovieList();
-
-    // Listen for text changes in search field
+    _loadMovies();
     _searchResultController.addListener(_onSearchTextChanged);
+  }
+
+  Future<void> _loadMovies() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final querySnapshot = await _movieRepository.getAllMovies();
+      setState(() {
+        allMovies = querySnapshot;
+        filteredMovies = List.from(allMovies);
+        _sortMovies();
+        _updateDisplayedMovies();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading movies: $e'))
+      );
+    }
   }
 
   @override
@@ -50,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_searchResultController.text.isEmpty) {
       setState(() {
         _isSearching = false;
+        currentPage = 1;
+        _updateDisplayedMovies();
       });
     }
   }
@@ -61,17 +85,21 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isSearching = false;
         _searchFocusNode.unfocus();
+        currentPage = 1;
+        _updateDisplayedMovies();
       });
       return;
     }
 
     setState(() {
       _isSearching = true;
-      // Filter movies based on search query
       searchResults = allMovies.where((movie) {
-        return movie.title.toLowerCase().contains(query);
+        return movie.title.toLowerCase().contains(query) ||
+            movie.genreType.toLowerCase().contains(query);
       }).toList();
-
+      searchResults.sort((a, b) => b.year.compareTo(a.year));
+      currentPage = 1;
+      _updateDisplayedMovies();
       _searchFocusNode.unfocus();
     });
   }
@@ -81,91 +109,49 @@ class _HomeScreenState extends State<HomeScreen> {
       _searchResultController.clear();
       _isSearching = false;
       _searchFocusNode.unfocus();
+      currentPage = 1;
+      _updateDisplayedMovies();
     });
   }
 
   void _applyFilters(Map<String, String> filters) {
     setState(() {
       _activeFilters = filters;
+      _filterMovies();
     });
   }
 
-  void _updateMovieList() {
-    setState(() {
-      int i = 0;
-      currentPage = 1;
-      switch (_selectedIndex) {
-        case 0: // Latest
-          allMovies = Movie.sampleMovies;
-          break;
-        case 1: // Featured
-          allMovies = Movie.sampleMovies;
-          break;
-        case 2: // Trending
-          allMovies = Movie.sampleMovies;
-          break;
-        default:
-          allMovies = [];
+  void _filterMovies() {
+    List<Movie> filtered = List.from(allMovies);
+
+    if (_activeFilters.containsKey('genre') && _activeFilters['genre'] != 'All') {
+      final selectedGenre = _activeFilters['genre']!.toLowerCase();
+      filtered = filtered.where((movie) {
+        final genres = movie.genreType
+            .split(',')
+            .map((g) => g.trim().toLowerCase())
+            .toList();
+        return genres.contains(selectedGenre);
+      }).toList();
+    }
+
+    if (_activeFilters.containsKey('year') && _activeFilters['year'] != 'All') {
+      final year = _activeFilters['year']!;
+      filtered = filtered.where((movie) => movie.year == year).toList();
+    }
+
+    if (_activeFilters.containsKey('rating')) {
+      final minRating = double.parse(_activeFilters['rating']!);
+      if (minRating > 0) {
+        filtered = filtered
+            .where((movie) => double.parse(movie.imdbRating) >= minRating)
+            .toList();
       }
-      // switch (_selectedIndex) {
-      //   case 0:
-      //     allMovies = [
-      //       for (i = 0; i < 40; i++) ...[
-      //         Movie(
-      //           title: "Iron Man",
-      //           year: "2008",
-      //           imagePath: "assets/movies/iron_man_2008.jpg",
-      //         ),
-      //         Movie(
-      //           title: "Avengers Infinity War",
-      //           year: "2018",
-      //           imagePath: "assets/movies/avengers_inf_war_2018.jpg",
-      //         ),
-      //         Movie(
-      //           title: "Thor Dark World",
-      //           year: "2017",
-      //           imagePath: "assets/movies/thor_d_world_2013.jpg",
-      //         ),
-      //       ],
-      //     ];
-      //     break;
-      //   case 2:
-      //     allMovies = [
-      //       Movie(
-      //         title: "Batman Dark Knight",
-      //         year: "2008",
-      //         imagePath: "assets/movies/dark_knight_2008.jpg",
-      //       ),
-      //       Movie(
-      //         title: "Spider-Man No Way Home",
-      //         year: "2021",
-      //         imagePath: "assets/movies/spiderman_nowayhome_2021.jpg",
-      //       ),
-      //       Movie(
-      //         title: "Dune",
-      //         year: "2021",
-      //         imagePath: "assets/movies/dune_2021.jpg",
-      //       ),
-      //       Movie(
-      //         title: "Top Gun: Maverick",
-      //         year: "2022",
-      //         imagePath: "assets/movies/topgun_2022.jpg",
-      //       ),
-      //       Movie(
-      //         title: "Avatar: The Way of Water",
-      //         year: "2022",
-      //         imagePath: "assets/movies/avatar2_2022.jpg",
-      //       ),
-      //       Movie(
-      //         title: "Everything Everywhere All at Once",
-      //         year: "2022",
-      //         imagePath: "assets/movies/eeaao_2022.jpg",
-      //       ),
-      //     ];
-      //     break;
-      //   default:
-      //     allMovies = [];
-      // }
+    }
+
+    setState(() {
+      filteredMovies = filtered;
+      currentPage = 1;
       _updateDisplayedMovies();
     });
   }
@@ -173,10 +159,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _updateDisplayedMovies() {
     final startIndex = (currentPage - 1) * moviesPerPage;
     final endIndex = startIndex + moviesPerPage;
+    final moviesToPaginate = _isSearching ? searchResults : filteredMovies;
+
     setState(() {
-      displayedMovies = allMovies.sublist(
-        startIndex.clamp(0, allMovies.length),
-        endIndex.clamp(0, allMovies.length),
+      paginatedMovies = moviesToPaginate.sublist(
+        startIndex.clamp(0, moviesToPaginate.length),
+        endIndex.clamp(0, moviesToPaginate.length),
       );
     });
   }
@@ -186,23 +174,52 @@ class _HomeScreenState extends State<HomeScreen> {
       currentPage = page;
       _updateDisplayedMovies();
     });
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _nextPage() {
-    if (currentPage < (allMovies.length / moviesPerPage).ceil()) {
-      _changePage(currentPage + 1);
+    
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
-  void _prevPage() {
-    if (currentPage > 1) {
-      _changePage(currentPage - 1);
-    }
+  void _sortMovies() {
+    setState(() {
+      final moviesToSort = _activeFilters.isNotEmpty ? filteredMovies : allMovies;
+
+      switch (_selectedIndex) {
+        case 0:
+          moviesToSort.sort((a, b) => b.year.compareTo(a.year));
+          break;
+        case 1:
+          final currentYear = DateTime.now().year.toString();
+          moviesToSort.sort((a, b) {
+            if (a.year == currentYear && b.year != currentYear) return -1;
+            if (b.year == currentYear && a.year != currentYear) return 1;
+            return b.year.compareTo(a.year);
+          });
+          break;
+        case 2:
+          moviesToSort.sort((a, b) {
+            final aRating = a.rottenRating == "N/A"
+                ? 0
+                : double.parse(a.rottenRating.replaceAll('%', ''));
+            final bRating = b.rottenRating == "N/A"
+                ? 0
+                : double.parse(b.rottenRating.replaceAll('%', ''));
+            return bRating.compareTo(aRating);
+          });
+          break;
+      }
+
+      if (_activeFilters.isNotEmpty) {
+        _filterMovies();
+      } else {
+        filteredMovies = List.from(allMovies);
+        _updateDisplayedMovies();
+      }
+    });
   }
 
   Widget _buildSearchResults() {
@@ -228,18 +245,54 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisSpacing: 30,
         mainAxisSpacing: 5,
       ),
-      itemCount: searchResults.length,
+      itemCount: paginatedMovies.length,
       itemBuilder: (context, index) {
-        return MovieCard(movie: searchResults[index]);
+        return MovieCard(movie: paginatedMovies[index]);
       },
+    );
+  }
+
+  Widget _buildMovieGrid() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+        ),
+      );
+    }
+
+    if (paginatedMovies.isEmpty) {
+      return const Center(
+        child: Text('No movies found', style: TextStyle(color: Colors.white)),
+      );
+    }
+
+    return CustomAnimation(
+      0.35,
+      type: AnimationType.fadeSlide,
+      GridView.builder(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.52,
+          crossAxisSpacing: 30,
+          mainAxisSpacing: 5,
+        ),
+        itemCount: paginatedMovies.length,
+        itemBuilder: (context, index) {
+          return MovieCard(movie: paginatedMovies[index]);
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (allMovies.length / moviesPerPage).ceil();
+    final totalPages = _isSearching
+        ? (searchResults.length / moviesPerPage).ceil()
+        : (filteredMovies.length / moviesPerPage).ceil();
     final hasActiveFilters = _activeFilters.isNotEmpty;
-    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: const Color(0xFF020912),
@@ -281,7 +334,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Stack(
         children: [
-          // Background Image
           Positioned.fill(
             child: Opacity(
               opacity: 0.09,
@@ -292,7 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Main Content
           SafeArea(
             top: true,
             child: Padding(
@@ -300,8 +351,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 25),
-
-                  // Search Bar
                   CustomAnimation(
                     0.5,
                     type: AnimationType.fadeSlide,
@@ -337,9 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.lightBlueAccent.withOpacity(
-                                    0.8,
-                                  ),
+                                  color: Colors.lightBlueAccent.withOpacity(0.8),
                                   shape: BoxShape.circle,
                                 ),
                                 child: IconButton(
@@ -366,9 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Only show filters and toggle buttons when not in search mode
                   if (!_isSearching) ...[
-                    // Filter Tag
                     CustomAnimation(
                       0.5,
                       type: AnimationType.bounce,
@@ -384,7 +429,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 25),
 
-                    // Toggle Buttons
                     CustomAnimation(
                       0.4,
                       type: AnimationType.fadeSlide,
@@ -397,13 +441,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: () {
                                 setState(() {
                                   _selectedIndex = index;
-                                  _updateMovieList();
+                                  _sortMovies();
                                 });
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isActive
                                       ? const Color.fromARGB(255, 23, 51, 90)
@@ -424,9 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
+                                      duration: const Duration(milliseconds: 300),
                                       height: 3,
                                       width: isActive ? 60 : 0,
                                       decoration: BoxDecoration(
@@ -448,44 +488,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Movie Grid with Pagination or Search Results
                   Expanded(
                     child: Stack(
                       children: [
                         if (_isSearching)
                           _buildSearchResults()
                         else
-                          // Normal movie grid
-                          displayedMovies.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'No movies found',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                )
-                              : CustomAnimation(
-                                  0.35,
-                                  type: AnimationType.fadeSlide,
-                                  GridView.builder(
-                                    controller: _scrollController,
-                                    physics: const BouncingScrollPhysics(),
-                                    gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          childAspectRatio: 0.52,
-                                          crossAxisSpacing: 30,
-                                          mainAxisSpacing: 5,
-                                        ),
-                                    itemCount: displayedMovies.length,
-                                    itemBuilder: (context, index) {
-                                      return MovieCard(
-                                        movie: displayedMovies[index],
-                                      );
-                                    },
-                                  ),
-                                ),
+                          _buildMovieGrid(),
 
-                        // Pagination Controls (only show when not in search mode)
                         if (!_isSearching && totalPages > 1)
                           Positioned(
                             bottom: 10,
@@ -505,10 +515,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Filter Dropdown Overlay (only show when not in search mode)
           if (_showFilters && !_isSearching)
             Positioned(
-              top: 180, // Adjusted position below search and filter tag
+              top: 180,
               left: 20,
               right: 20,
               child: Material(

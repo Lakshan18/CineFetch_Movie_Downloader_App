@@ -6,7 +6,7 @@
 //   final int maxTitleLength;
 
 //   const MovieCard({
-//     super.key, 
+//     super.key,
 //     required this.movie,
 //     this.maxTitleLength = 16,
 //   });
@@ -73,7 +73,7 @@
 //   }
 // }
 
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../screens/movie_overview.dart';
@@ -82,11 +82,7 @@ class MovieCard extends StatelessWidget {
   final Movie movie;
   final int maxTitleLength;
 
-  const MovieCard({
-    super.key, 
-    required this.movie,
-    this.maxTitleLength = 16,
-  });
+  const MovieCard({super.key, required this.movie, this.maxTitleLength = 16});
 
   String _truncateTitle(String title) {
     if (title.length <= maxTitleLength) return title;
@@ -102,9 +98,7 @@ class MovieCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => MovieOverview(movie: movie),
-          ),
+          MaterialPageRoute(builder: (context) => MovieOverview(movie: movie)),
         );
       },
       child: SizedBox(
@@ -116,9 +110,12 @@ class MovieCard extends StatelessWidget {
               aspectRatio: 0.7,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  movie.imagePath,
+                child: CachedNetworkImage(
+                  imageUrl: movie.movieImgPath,
                   fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => Icon(Icons.error),
                 ),
               ),
             ),
