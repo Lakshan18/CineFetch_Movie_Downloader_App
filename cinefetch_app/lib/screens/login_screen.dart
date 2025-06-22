@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cinefetch_app/animation/custom_animation.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/components/custom_textfield.dart';
@@ -5,6 +7,8 @@ import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/forgot_password.dart';
 import 'package:cinefetch_app/screens/home_screen.dart';
 import 'package:cinefetch_app/screens/register_screen.dart';
+import 'package:cinefetch_app/services/network_service.dart';
+import 'package:cinefetch_app/services/session_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class LoginProcess extends StatefulWidget {
   const LoginProcess({super.key});
@@ -21,7 +26,6 @@ class LoginProcess extends StatefulWidget {
 }
 
 class UserLoginProcess {
-  // Password hashing function
   String _hashPassword(String plainText) {
     return sha256.convert(utf8.encode(plainText)).toString();
   }
@@ -70,17 +74,14 @@ class UserLoginProcess {
         type: MessageType.info,
       );
 
-      // Hash the input password
       final inputHash = _hashPassword(password);
 
-      // Handle remember me functionality
       if (rememberMe) {
         await _saveCredentials(username, inputHash);
       } else {
         await _clearCredentials();
       }
 
-      // Query Firestore for username
       final query = await FirebaseFirestore.instance
           .collection('user')
           .where('username', isEqualTo: username)
@@ -94,21 +95,21 @@ class UserLoginProcess {
       final userDoc = query.docs.first;
       final storedPassword = userDoc['password'] as String?;
 
-      // Compare hashed passwords
       if (storedPassword != inputHash) {
         throw Exception('Invalid Credentials!');
       }
 
-      // Login success
-      CustomMessage.show(
-        context: context,
-        message: "Welcome back, ${userDoc['firstName']}!",
-        type: MessageType.success,
-      );
-
       print(getRememberedCredentials().toString());
 
       if (context.mounted) {
+        await SessionManager.createSession(userDoc.id, username);
+
+        CustomMessage.show(
+          context: context,
+          message: "Welcome back, ${userDoc['firstName']}!",
+          type: MessageType.success,
+        );
+
         Navigator.pushReplacement(
           context,
           SlideFadePageRoute(page: const HomeScreen()),
@@ -127,6 +128,9 @@ class UserLoginProcess {
 }
 
 class _LoginScreenState extends State<LoginProcess> {
+  late StreamSubscription<bool> _connectionSubscription;
+  bool _dialogShowing = false;
+
   bool _rememberMe = false;
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
@@ -136,6 +140,26 @@ class _LoginScreenState extends State<LoginProcess> {
   @override
   void initState() {
     super.initState();
+
+    final networkService = Provider.of<NetworkService>(context, listen: false);
+
+    _connectionSubscription = networkService.connectionChanges.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        if (_dialogShowing) {
+          Navigator.of(context).pop();
+          _dialogShowing = false;
+        }
+      } else {
+        _handleNoConnection(networkService);
+      }
+    });
+
+    if (!networkService.isConnected) {
+      _handleNoConnection(networkService);
+    }
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Color.fromARGB(255, 43, 100, 147),
@@ -147,6 +171,15 @@ class _LoginScreenState extends State<LoginProcess> {
     _loadRememberedCredentials();
   }
 
+  void _handleNoConnection(NetworkService networkService) {
+    if (!_dialogShowing) {
+      _dialogShowing = true;
+      networkService.showNoInternetDialog(context).then((_) {
+        _dialogShowing = false;
+      });
+    }
+  }
+
   Future<void> _loadRememberedCredentials() async {
     final (username, hashedPassword) = await _userLoginProcess
         .getRememberedCredentials();
@@ -154,14 +187,14 @@ class _LoginScreenState extends State<LoginProcess> {
       setState(() {
         usernameController.text = username;
         _rememberMe = true;
-        // Note: We don't set the password here for security reasons
-        // The password field will remain empty, but the checkbox will be checked
       });
     }
   }
 
   @override
   void dispose() {
+    _connectionSubscription.cancel();
+
     usernameController.dispose();
     passwordController.dispose();
     scrollController.dispose();
@@ -170,6 +203,8 @@ class _LoginScreenState extends State<LoginProcess> {
 
   @override
   Widget build(BuildContext context) {
+    final networkService = Provider.of<NetworkService>(context);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Color(0xFF020912),
@@ -179,15 +214,16 @@ class _LoginScreenState extends State<LoginProcess> {
         backgroundColor: const Color(0xFF020912),
         body: Stack(
           children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.09,
-                child: Image.asset(
-                  "assets/page_background.png",
-                  fit: BoxFit.cover,
+            if (!networkService.isConnected && !_dialogShowing)
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.09,
+                  child: Image.asset(
+                    "assets/page_background.png",
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
             LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(

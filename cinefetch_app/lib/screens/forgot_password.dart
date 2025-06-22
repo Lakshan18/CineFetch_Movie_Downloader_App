@@ -1,11 +1,14 @@
+import 'dart:async';
+
+import 'package:cinefetch_app/services/network_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/components/custom_textfield.dart';
 import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/email_verification_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
+import 'package:provider/provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -15,19 +18,55 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  late StreamSubscription<bool> _connectionSubscription;
+  bool _dialogShowing = false;
+
   final _emailController = TextEditingController();
   bool _isLoading = false;
   final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
 
   @override
+  void initState() {
+    super.initState();
+    final networkService = Provider.of<NetworkService>(context, listen: false);
+
+    _connectionSubscription = networkService.connectionChanges.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        if (_dialogShowing) {
+          Navigator.of(context).pop();
+          _dialogShowing = false;
+        }
+      } else {
+        _handleNoConnection(networkService);
+      }
+    });
+
+    if (!networkService.isConnected) {
+      _handleNoConnection(networkService);
+    }
+  }
+
+  void _handleNoConnection(NetworkService networkService) {
+    if (!_dialogShowing) {
+      _dialogShowing = true;
+      networkService.showNoInternetDialog(context).then((_) {
+        _dialogShowing = false;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _connectionSubscription.cancel();
     _emailController.dispose();
     super.dispose();
   }
 
   Future<void> _sendResetCode() async {
     final email = _emailController.text.trim();
-    
+
     if (email.isEmpty) {
       CustomMessage.show(
         context: context,
@@ -147,14 +186,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  
+
                   MyTextField(
                     controller: _emailController,
                     hinttext: "Your email address",
                     obsecuretext: false,
                     suffixIcon: false,
                   ),
-                  
+
                   const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,

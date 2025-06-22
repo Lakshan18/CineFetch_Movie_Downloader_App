@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cinefetch_app/services/network_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/components/custom_textfield.dart';
@@ -7,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:provider/provider.dart';
 
 class NewPasswordScreen extends StatefulWidget {
   final String userId;
@@ -23,6 +27,9 @@ class NewPasswordScreen extends StatefulWidget {
 }
 
 class _NewPasswordScreenState extends State<NewPasswordScreen> {
+  late StreamSubscription<bool> _connectionSubscription;
+  bool _dialogShowing = false;
+
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
@@ -37,7 +44,40 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    final networkService = Provider.of<NetworkService>(context, listen: false);
+
+    _connectionSubscription = networkService.connectionChanges.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        if (_dialogShowing) {
+          Navigator.of(context).pop();
+          _dialogShowing = false;
+        }
+      } else {
+        _handleNoConnection(networkService);
+      }
+    });
+
+    if (!networkService.isConnected) {
+      _handleNoConnection(networkService);
+    }
+  }
+
+  void _handleNoConnection(NetworkService networkService) {
+    if (!_dialogShowing) {
+      _dialogShowing = true;
+      networkService.showNoInternetDialog(context).then((_) {
+        _dialogShowing = false;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _connectionSubscription.cancel();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -68,7 +108,8 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     if (!_passwordRegex.hasMatch(newPassword)) {
       CustomMessage.show(
         context: context,
-        message: "Password must be 5-10 chars with uppercase, lowercase, number and symbol",
+        message:
+            "Password must be 5-10 chars with uppercase, lowercase, number and symbol",
         type: MessageType.warning,
       );
       return;
@@ -175,7 +216,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  
+
                   // New Password Field
                   MyTextField(
                     controller: _newPasswordController,
@@ -184,7 +225,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                     suffixIcon: true,
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // Confirm Password Field
                   MyTextField(
                     controller: _confirmPasswordController,
@@ -192,7 +233,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                     obsecuretext: _obscureConfirmPassword,
                     suffixIcon: true,
                   ),
-                  
+
                   const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,

@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:cinefetch_app/animation/custom_animation.dart';
+import 'package:cinefetch_app/services/network_service.dart';
 import 'package:flutter/material.dart';
 import '../components/filter_dropdown.dart';
 import '../components/filter_tag.dart';
 import '../components/movie_card.dart';
 import '../components/pagination_controls.dart';
+import '../components/side_panel.dart';
 import '../models/movie.dart';
 import '../repositories/movie_repository.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,13 +20,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late StreamSubscription<bool> _connectionSubscription;
+  bool _dialogShowing = false;
+
   final ScrollController _scrollController = ScrollController();
   final _searchResultController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final MovieRepository _movieRepository = MovieRepository();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _showFilters = false;
   bool _isSearching = false;
+  bool _isDarkMode = true;
   Map<String, String> _activeFilters = {};
   int _selectedIndex = 0;
   final List<String> _toggleLabels = ["Latest", "Featured", "Trending"];
@@ -36,13 +46,49 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
+    final networkService = Provider.of<NetworkService>(context, listen: false);
+
+    _connectionSubscription = networkService.connectionChanges.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        if (_dialogShowing) {
+          Navigator.of(context).pop();
+          _dialogShowing = false;
+        }
+        // Reload movies if connection returns
+        if (!_isLoading && allMovies.isEmpty) {
+          _loadMovies();
+        }
+      } else {
+        _handleNoConnection(networkService);
+      }
+    });
+
+    if (networkService.isConnected) {
+      _loadMovies();
+    } else {
+      _handleNoConnection(networkService);
+    }
+
     _loadMovies();
     _searchResultController.addListener(_onSearchTextChanged);
   }
 
+  
+  void _handleNoConnection(NetworkService networkService) {
+    if (!_dialogShowing) {
+      _dialogShowing = true;
+      networkService.showNoInternetDialog(context).then((_) {
+        _dialogShowing = false;
+      });
+    }
+  }
+
+
   Future<void> _loadMovies() async {
     setState(() => _isLoading = true);
-
     try {
       final querySnapshot = await _movieRepository.getAllMovies();
       setState(() {
@@ -54,14 +100,16 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading movies: $e'))
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading movies: $e')));
     }
   }
 
   @override
   void dispose() {
+    _connectionSubscription.cancel();
+
     _scrollController.dispose();
     _searchResultController.dispose();
     _searchFocusNode.dispose();
@@ -80,7 +128,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _performSearch() {
     final query = _searchResultController.text.trim().toLowerCase();
-
     if (query.isEmpty) {
       setState(() {
         _isSearching = false;
@@ -90,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       return;
     }
-
     setState(() {
       _isSearching = true;
       searchResults = allMovies.where((movie) {
@@ -123,8 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _filterMovies() {
     List<Movie> filtered = List.from(allMovies);
-
-    if (_activeFilters.containsKey('genre') && _activeFilters['genre'] != 'All') {
+    if (_activeFilters.containsKey('genre') &&
+        _activeFilters['genre'] != 'All') {
       final selectedGenre = _activeFilters['genre']!.toLowerCase();
       filtered = filtered.where((movie) {
         final genres = movie.genreType
@@ -134,12 +180,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return genres.contains(selectedGenre);
       }).toList();
     }
-
     if (_activeFilters.containsKey('year') && _activeFilters['year'] != 'All') {
       final year = _activeFilters['year']!;
       filtered = filtered.where((movie) => movie.year == year).toList();
     }
-
     if (_activeFilters.containsKey('rating')) {
       final minRating = double.parse(_activeFilters['rating']!);
       if (minRating > 0) {
@@ -148,7 +192,6 @@ class _HomeScreenState extends State<HomeScreen> {
             .toList();
       }
     }
-
     setState(() {
       filteredMovies = filtered;
       currentPage = 1;
@@ -160,7 +203,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final startIndex = (currentPage - 1) * moviesPerPage;
     final endIndex = startIndex + moviesPerPage;
     final moviesToPaginate = _isSearching ? searchResults : filteredMovies;
-
     setState(() {
       paginatedMovies = moviesToPaginate.sublist(
         startIndex.clamp(0, moviesToPaginate.length),
@@ -174,7 +216,6 @@ class _HomeScreenState extends State<HomeScreen> {
       currentPage = page;
       _updateDisplayedMovies();
     });
-    
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0,
@@ -186,8 +227,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _sortMovies() {
     setState(() {
-      final moviesToSort = _activeFilters.isNotEmpty ? filteredMovies : allMovies;
-
+      final moviesToSort = _activeFilters.isNotEmpty
+          ? filteredMovies
+          : allMovies;
       switch (_selectedIndex) {
         case 0:
           moviesToSort.sort((a, b) => b.year.compareTo(a.year));
@@ -212,7 +254,6 @@ class _HomeScreenState extends State<HomeScreen> {
           });
           break;
       }
-
       if (_activeFilters.isNotEmpty) {
         _filterMovies();
       } else {
@@ -235,7 +276,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-
     return GridView.builder(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
@@ -260,13 +300,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-
     if (paginatedMovies.isEmpty) {
       return const Center(
         child: Text('No movies found', style: TextStyle(color: Colors.white)),
       );
     }
-
     return CustomAnimation(
       0.35,
       type: AnimationType.fadeSlide,
@@ -289,14 +327,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final networkService = Provider.of<NetworkService>(context);
+
     final totalPages = _isSearching
         ? (searchResults.length / moviesPerPage).ceil()
         : (filteredMovies.length / moviesPerPage).ceil();
     final hasActiveFilters = _activeFilters.isNotEmpty;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFF020912),
       resizeToAvoidBottomInset: false,
+      endDrawer: SidePanel(onClose: () => Navigator.of(context).pop()),
       appBar: AppBar(
         backgroundColor: const Color(0xFF020912),
         leading: IconButton(
@@ -306,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert, color: Colors.white),
-            onPressed: () {},
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
         ],
         title: const Row(
@@ -334,6 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Stack(
         children: [
+          if(networkService.isConnected && !_dialogShowing)
           Positioned.fill(
             child: Opacity(
               opacity: 0.09,
@@ -343,7 +386,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
           SafeArea(
             top: true,
             child: Padding(
@@ -386,7 +428,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.lightBlueAccent.withOpacity(0.8),
+                                  color: Colors.lightBlueAccent.withOpacity(
+                                    0.8,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: IconButton(
@@ -410,9 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   if (!_isSearching) ...[
                     CustomAnimation(
                       0.5,
@@ -426,9 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 25),
-
                     CustomAnimation(
                       0.4,
                       type: AnimationType.fadeSlide,
@@ -445,7 +485,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 });
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isActive
                                       ? const Color.fromARGB(255, 23, 51, 90)
@@ -466,7 +508,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     AnimatedContainer(
-                                      duration: const Duration(milliseconds: 300),
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
                                       height: 3,
                                       width: isActive ? 60 : 0,
                                       decoration: BoxDecoration(
@@ -485,9 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 30),
-
                   Expanded(
                     child: Stack(
                       children: [
@@ -495,7 +537,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           _buildSearchResults()
                         else
                           _buildMovieGrid(),
-
                         if (!_isSearching && totalPages > 1)
                           Positioned(
                             bottom: 10,
@@ -514,7 +555,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
           if (_showFilters && !_isSearching)
             Positioned(
               top: 180,

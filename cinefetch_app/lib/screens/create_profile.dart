@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cinefetch_app/components/custom_action_message.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
@@ -6,12 +7,14 @@ import 'package:cinefetch_app/components/custom_textfield.dart';
 import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/login_screen.dart';
 import 'package:cinefetch_app/services/image_picker_services.dart';
+import 'package:cinefetch_app/services/network_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class CreateProfileProcess extends StatefulWidget {
   const CreateProfileProcess({super.key});
@@ -21,6 +24,9 @@ class CreateProfileProcess extends StatefulWidget {
 }
 
 class _CreateProfileProcessState extends State<CreateProfileProcess> {
+  late StreamSubscription<bool> _connectionSubscription;
+  bool _dialogShowing = false;
+
   final _usernameController = TextEditingController();
   final _pinController = TextEditingController();
   final ImagePickerService _imagePickerService = ImagePickerService();
@@ -28,6 +34,38 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
   bool isLoading = false;
   double _progress = 0.0;
   bool _isCreating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final networkService = Provider.of<NetworkService>(context, listen: false);
+
+    _connectionSubscription = networkService.connectionChanges.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        if (_dialogShowing) {
+          Navigator.of(context).pop();
+          _dialogShowing = false;
+        }
+      } else {
+        _handleNoConnection(networkService);
+      }
+    });
+
+    if (!networkService.isConnected) {
+      _handleNoConnection(networkService);
+    }
+  }
+
+  void _handleNoConnection(NetworkService networkService) {
+    if (!_dialogShowing) {
+      _dialogShowing = true;
+      networkService.showNoInternetDialog(context).then((_) {
+        _dialogShowing = false;
+      });
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {

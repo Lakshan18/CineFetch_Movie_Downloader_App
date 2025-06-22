@@ -7,6 +7,7 @@ import 'package:cinefetch_app/components/custom_textfield.dart';
 import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/email_verification_screen.dart';
 import 'package:cinefetch_app/screens/login_screen.dart';
+import 'package:cinefetch_app/services/network_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +15,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -167,6 +169,9 @@ class UserRegisterProcess {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  late StreamSubscription<bool> _connectionSubscription;
+  bool _dialogShowing = false;
+
   final scrollController = ScrollController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -177,7 +182,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+
+    final networkService = Provider.of<NetworkService>(context, listen: false);
+
+    _connectionSubscription = networkService.connectionChanges.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        if (_dialogShowing) {
+          Navigator.of(context).pop();
+          _dialogShowing = false;
+        }
+      } else {
+        _handleNoConnection(networkService);
+      }
+    });
+
+    if (!networkService.isConnected) {
+      _handleNoConnection(networkService);
+    }
+  }
+
+  void _handleNoConnection(NetworkService networkService) {
+    if (!_dialogShowing) {
+      _dialogShowing = true;
+      networkService.showNoInternetDialog(context).then((_) {
+        _dialogShowing = false;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _connectionSubscription.cancel();
+
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -189,6 +229,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final networkService = Provider.of<NetworkService>(context);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: const Color(0xFF020912),
@@ -199,15 +241,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: const Color(0xFF020912),
         body: Stack(
           children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.09,
-                child: Image.asset(
-                  "assets/page_background.png",
-                  fit: BoxFit.cover,
+            if (!networkService.isConnected && !_dialogShowing)
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.09,
+                  child: Image.asset(
+                    "assets/page_background.png",
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
