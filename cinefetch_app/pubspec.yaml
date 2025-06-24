@@ -84,9 +84,6 @@ flutter:
   assets:
     - assets/
     - assets/logo/
-    - assets/movies/
-    - assets/cast/actor/
-    - assets/cast/actress/
 
   # fonts added...............
   fonts:

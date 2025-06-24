@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:cinefetch_app/animation/custom_animation.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
 import 'package:cinefetch_app/components/custom_textfield.dart';
@@ -99,8 +98,6 @@ class UserLoginProcess {
         throw Exception('Invalid Credentials!');
       }
 
-      print(getRememberedCredentials().toString());
-
       if (context.mounted) {
         await SessionManager.createSession(userDoc.id, username);
 
@@ -143,9 +140,7 @@ class _LoginScreenState extends State<LoginProcess> {
 
     final networkService = Provider.of<NetworkService>(context, listen: false);
 
-    _connectionSubscription = networkService.connectionChanges.listen((
-      isConnected,
-    ) {
+    _connectionSubscription = networkService.connectionChanges.listen((isConnected) {
       if (isConnected) {
         if (_dialogShowing) {
           Navigator.of(context).pop();
@@ -181,8 +176,7 @@ class _LoginScreenState extends State<LoginProcess> {
   }
 
   Future<void> _loadRememberedCredentials() async {
-    final (username, hashedPassword) = await _userLoginProcess
-        .getRememberedCredentials();
+    final (username, hashedPassword) = await _userLoginProcess.getRememberedCredentials();
     if (username != null && hashedPassword != null) {
       setState(() {
         usernameController.text = username;
@@ -194,7 +188,6 @@ class _LoginScreenState extends State<LoginProcess> {
   @override
   void dispose() {
     _connectionSubscription.cancel();
-
     usernameController.dispose();
     passwordController.dispose();
     scrollController.dispose();
@@ -203,8 +196,6 @@ class _LoginScreenState extends State<LoginProcess> {
 
   @override
   Widget build(BuildContext context) {
-    final networkService = Provider.of<NetworkService>(context);
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Color(0xFF020912),
@@ -214,16 +205,15 @@ class _LoginScreenState extends State<LoginProcess> {
         backgroundColor: const Color(0xFF020912),
         body: Stack(
           children: [
-            if (!networkService.isConnected && !_dialogShowing)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.09,
-                  child: Image.asset(
-                    "assets/page_background.png",
-                    fit: BoxFit.cover,
-                  ),
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.09,
+                child: Image.asset(
+                  "assets/page_background.png",
+                  fit: BoxFit.cover,
                 ),
               ),
+            ),
             LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
@@ -249,9 +239,7 @@ class _LoginScreenState extends State<LoginProcess> {
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   Image(
-                                    image: AssetImage(
-                                      "assets/logo/cine_fetch_logo_tr.png",
-                                    ),
+                                    image: AssetImage("assets/logo/cine_fetch_logo_tr.png"),
                                     width: 100,
                                     height: 70,
                                   ),
@@ -261,8 +249,7 @@ class _LoginScreenState extends State<LoginProcess> {
                               Row(
                                 children: [
                                   Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       CustomAnimation(
                                         0.6,
@@ -322,27 +309,18 @@ class _LoginScreenState extends State<LoginProcess> {
                                 0.7,
                                 type: AnimationType.swing,
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
                                         Checkbox(
                                           value: _rememberMe,
-                                          onChanged: (value) => setState(
-                                            () => _rememberMe = value ?? false,
+                                          onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                                          fillColor: WidgetStateProperty.resolveWith<Color>(
+                                            (states) => states.contains(WidgetState.selected)
+                                                ? const Color(0xFF1579FC)
+                                                : Colors.transparent,
                                           ),
-                                          fillColor:
-                                              WidgetStateProperty.resolveWith<
-                                                Color
-                                              >(
-                                                (states) =>
-                                                    states.contains(
-                                                      WidgetState.selected,
-                                                    )
-                                                    ? const Color(0xFF1579FC)
-                                                    : Colors.transparent,
-                                              ),
                                         ),
                                         const Text(
                                           "Remember me",
@@ -358,9 +336,7 @@ class _LoginScreenState extends State<LoginProcess> {
                                       onPressed: () => {
                                         Navigator.push(
                                           context,
-                                          SlideFadePageRoute(
-                                            page: const ForgotPasswordScreen(),
-                                          ),
+                                          SlideFadePageRoute(page: const ForgotPasswordScreen()),
                                         ),
                                       },
                                       child: const Text(
@@ -383,7 +359,6 @@ class _LoginScreenState extends State<LoginProcess> {
                                   width: double.infinity,
                                   child: ElevatedButton(
                                     onPressed: () async {
-                                      // Show loading indicator
                                       CustomMessage.show(
                                         context: context,
                                         message: "Logging in...",
@@ -391,13 +366,12 @@ class _LoginScreenState extends State<LoginProcess> {
                                       );
 
                                       try {
-                                        await _userLoginProcess
-                                            .loginWithFirestore(
-                                              context,
-                                              usernameController.text,
-                                              passwordController.text,
-                                              _rememberMe,
-                                            );
+                                        await _userLoginProcess.loginWithFirestore(
+                                          context,
+                                          usernameController.text,
+                                          passwordController.text,
+                                          _rememberMe,
+                                        );
                                       } catch (e) {
                                         if (context.mounted) {
                                           CustomMessage.show(
@@ -410,9 +384,7 @@ class _LoginScreenState extends State<LoginProcess> {
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF1A73E8),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
                                     ),
                                     child: const Text(
                                       "LOGIN",
@@ -445,9 +417,7 @@ class _LoginScreenState extends State<LoginProcess> {
                                     GestureDetector(
                                       onTap: () => Navigator.push(
                                         context,
-                                        SlideFadePageRoute(
-                                          page: const RegisterScreen(),
-                                        ),
+                                        SlideFadePageRoute(page: const RegisterScreen()),
                                       ),
                                       child: const Text(
                                         "Register Now",
@@ -462,8 +432,7 @@ class _LoginScreenState extends State<LoginProcess> {
                                 ),
                               ),
                               SizedBox(
-                                height:
-                                    MediaQuery.of(context).viewInsets.bottom > 0
+                                height: MediaQuery.of(context).viewInsets.bottom > 0
                                     ? MediaQuery.of(context).viewInsets.bottom
                                     : 20.0,
                               ),

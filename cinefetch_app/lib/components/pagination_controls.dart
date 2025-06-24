@@ -15,11 +15,9 @@ class PaginationControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate the visible page range (always 3 pages centered on current)
     int startPage = currentPage - 1;
     int endPage = currentPage + 1;
 
-    // Adjust if near start or end
     if (startPage < 1) {
       startPage = 1;
       endPage = 3;
@@ -30,7 +28,6 @@ class PaginationControls extends StatelessWidget {
       startPage = totalPages > 2 ? totalPages - 2 : 1;
     }
 
-    // Ensure we don't exceed page limits
     startPage = startPage.clamp(1, totalPages);
     endPage = endPage.clamp(1, totalPages);
 
@@ -46,7 +43,6 @@ class PaginationControls extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Previous Button
             CustomAnimation(
               0.58,
               type: AnimationType.swing,
@@ -62,24 +58,19 @@ class PaginationControls extends StatelessWidget {
               ),
             ),
 
-            // Always show first page if not in range
             if (startPage > 1) ...[
               _buildPageButton(1),
               if (startPage > 2)
                 const Text('...', style: TextStyle(color: Colors.white)),
             ],
 
-            // Visible page range
             for (int i = startPage; i <= endPage; i++) _buildPageButton(i),
 
-            // Show last page if not in range
             if (endPage < totalPages) ...[
               if (endPage < totalPages - 1)
                 const Text('...', style: TextStyle(color: Colors.white)),
               _buildPageButton(totalPages),
             ],
-
-            // Next Button
             CustomAnimation(
               0.58,
               type: AnimationType.swing,

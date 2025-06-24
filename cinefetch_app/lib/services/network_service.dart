@@ -8,7 +8,8 @@ class NetworkService with ChangeNotifier {
 
   final Connectivity _connectivity = Connectivity();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
-  StreamController<bool> connectionController = StreamController<bool>.broadcast();
+  StreamController<bool> connectionController =
+      StreamController<bool>.broadcast();
   Timer? _retryTimer;
 
   NetworkService() {
@@ -17,7 +18,9 @@ class NetworkService with ChangeNotifier {
 
   Future<void> _init() async {
     await _checkConnection();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _updateConnectionStatus,
+    );
   }
 
   Future<void> _checkConnection() async {
@@ -42,9 +45,9 @@ class NetworkService with ChangeNotifier {
 
   Future<void> showNoInternetDialog(BuildContext context) async {
     _retryTimer?.cancel();
-    
+
     if (ModalRoute.of(context)?.isCurrent != true) return;
-    
+
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -52,11 +55,21 @@ class NetworkService with ChangeNotifier {
         backgroundColor: const Color(0xFF051225),
         title: const Text(
           'No Internet Connection',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontFamily: "Rosario",
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: const Text(
           'Please check your internet connection and try again.',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+            fontFamily: "Rosario",
+            fontWeight: FontWeight.w500,
+          ),
         ),
         actions: [
           TextButton(
@@ -65,10 +78,7 @@ class NetworkService with ChangeNotifier {
               _checkConnection();
               _scheduleNextDialog(context);
             },
-            child: const Text(
-              'Retry',
-              style: TextStyle(color: Colors.blue),
-            ),
+            child: const Text('Retry', style: TextStyle(color: Colors.blue)),
           ),
         ],
       ),

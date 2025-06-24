@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cinefetch_app/screens/create_profile.dart';
 import 'package:cinefetch_app/screens/new_password_screen.dart';
 import 'package:cinefetch_app/services/network_service.dart';
+import 'package:cinefetch_app/services/session_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
@@ -129,18 +130,22 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           .doc(widget.userId)
           .get();
 
+      if (!doc.exists) {
+        throw Exception("User document not found");
+      }
+
       if (doc.data()?['verificationCode'] == code) {
-        // Clear verification code
         await FirebaseFirestore.instance
             .collection('user')
             .doc(widget.userId)
             .update({
               'verificationCode': FieldValue.delete(),
-              if (!widget.isPasswordReset) 'emailVerified': true,
+              'emailVerified': true,
             });
 
+        await SessionManager.setEmailVerified(true);
+
         if (widget.isPasswordReset) {
-          // Navigate to password reset screen
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -153,8 +158,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             );
           }
         } else {
-          // Original registration flow
-          await FirebaseAuth.instance.currentUser?.reload();
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -188,14 +191,20 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     try {
       final newCode = (100000 + Random().nextInt(900000)).toString();
+
       await FirebaseFirestore.instance
           .collection('user')
           .doc(widget.userId)
-          .update({'verificationCode': newCode});
+          .update({
+            'verificationCode': newCode,
+            'email': widget.email,
+            'lastCodeResentAt': FieldValue.serverTimestamp(),
+            'shouldSendVerificationEmail': true,
+          });
 
       CustomMessage.show(
         context: context,
-        message: "New verification code sent!",
+        message: "New verification code sent to ${widget.email}",
         type: MessageType.success,
       );
     } catch (e) {
@@ -204,9 +213,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         message: "Failed to resend code: ${e.toString()}",
         type: MessageType.error,
       );
+      debugPrint("Resend error: $e");
     } finally {
-      if (mounted) setState(() => _isResending = false);
-      _startResendTimer();
+      if (mounted) {
+        setState(() => _isResending = false);
+        _startResendTimer();
+      }
     }
   }
 
@@ -243,126 +255,162 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 80),
-                  Text(
-                    widget.isPasswordReset
-                        ? "Verify Your Identity"
-                        : "Verify Your Email",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontFamily: "Rosario",
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    widget.isPasswordReset
-                        ? "We sent a 6-digit code to ${widget.email} to verify your identity"
-                        : "We sent a 6-digit code to ${widget.email}",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: "Quicksand",
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 100),
 
-                  // 6-Digit Code Input
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(6, (index) {
-                      return SizedBox(
-                        width: 50,
-                        height: 60,
-                        child: TextField(
-                          controller: _controllers[index],
-                          focusNode: _focusNodes[index],
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          maxLength: 1,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            color: Colors.white,
-                            fontFamily: "Quicksand",
-                            fontWeight: FontWeight.w600,
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.1),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.3),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      physics: BouncingScrollPhysics(),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(0),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    widget.isPasswordReset
+                                        ? "Verify Your Identity"
+                                        : "Verify Your Email",
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontFamily: "Rosario",
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    widget.isPasswordReset
+                                        ? "We sent a 6-digit code to ${widget.email} to verify your identity"
+                                        : "We sent a 6-digit code to ${widget.email}",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontFamily: "Quicksand",
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 40),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: List.generate(6, (index) {
+                                      return SizedBox(
+                                        width: 50,
+                                        height: 60,
+                                        child: TextField(
+                                          controller: _controllers[index],
+                                          focusNode: _focusNodes[index],
+                                          textAlign: TextAlign.center,
+                                          keyboardType: TextInputType.number,
+                                          maxLength: 1,
+                                          style: const TextStyle(
+                                            fontSize: 24,
+                                            color: Colors.white,
+                                            fontFamily: "Quicksand",
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          decoration: InputDecoration(
+                                            counterText: '',
+                                            filled: true,
+                                            fillColor: Colors.white.withOpacity(
+                                              0.1,
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(
+                                                8,
+                                              ),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(
+                                                8,
+                                              ),
+                                              borderSide: BorderSide(
+                                                color: Colors.white.withOpacity(
+                                                  0.3,
+                                                ),
+                                              ),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(
+                                                8,
+                                              ),
+                                              borderSide: const BorderSide(
+                                                color: Color(0xFF1A73E8),
+                                                width: 2,
+                                              ),
+                                            ),
+                                          ),
+                                          onChanged: (value) =>
+                                              _handleInput(value, index),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                  const SizedBox(height: 40),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _isVerifying
+                                          ? null
+                                          : _verifyCode,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF1A73E8),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: _isVerifying
+                                          ? const CircularProgressIndicator(
+                                              valueColor: AlwaysStoppedAnimation(
+                                                Colors.white,
+                                              ),
+                                            )
+                                          : Text(
+                                              widget.isPasswordReset
+                                                  ? "VERIFY IDENTITY"
+                                                  : "VERIFY EMAIL",
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.white,
+                                                fontFamily: "Quicksand",
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Center(
+                                    child: TextButton(
+                                      onPressed: _resendTimer > 0 || _isResending
+                                          ? null
+                                          : _resendCode,
+                                      child: Text(
+                                        _resendTimer > 0
+                                            ? "Resend code in $_resendTimer seconds"
+                                            : "Resend verification code",
+                                        style: TextStyle(
+                                          color: _resendTimer > 0
+                                              ? Colors.white54
+                                              : const Color(0xFF1A73E8),
+                                          fontFamily: "Quicksand",
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF1A73E8),
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          onChanged: (value) => _handleInput(value, index),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
                           ],
-                        ),
-                      );
-                    }),
-                  ),
-
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isVerifying ? null : _verifyCode,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A73E8),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: _isVerifying
-                          ? const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            )
-                          : Text(
-                              widget.isPasswordReset
-                                  ? "VERIFY IDENTITY"
-                                  : "VERIFY EMAIL",
-                              style: const TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                fontFamily: "Quicksand",
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: TextButton(
-                      onPressed: _resendTimer > 0 || _isResending
-                          ? null
-                          : _resendCode,
-                      child: Text(
-                        _resendTimer > 0
-                            ? "Resend code in $_resendTimer seconds"
-                            : "Resend verification code",
-                        style: TextStyle(
-                          color: _resendTimer > 0
-                              ? Colors.white54
-                              : const Color(0xFF1A73E8),
-                          fontFamily: "Quicksand",
-                          fontSize: 14,
                         ),
                       ),
                     ),

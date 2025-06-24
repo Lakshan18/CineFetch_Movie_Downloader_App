@@ -105,7 +105,6 @@ class _MovieOverviewState extends State<MovieOverview> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title and Year
                   Text(
                     widget.movie.title,
                     style: const TextStyle(
@@ -129,7 +128,6 @@ class _MovieOverviewState extends State<MovieOverview> {
 
                   const SizedBox(height: 8),
 
-                  // Genre
                   if (widget.movie.genreType != null)
                     Text(
                       widget.movie.genreType!,
@@ -142,11 +140,9 @@ class _MovieOverviewState extends State<MovieOverview> {
 
                   const SizedBox(height: 20),
 
-                  // Ratings Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // IMDb Rating
                       Column(
                         children: [
                           Text(
@@ -169,7 +165,6 @@ class _MovieOverviewState extends State<MovieOverview> {
                         ],
                       ),
 
-                      // Rotten Tomatoes Rating
                       Column(
                         children: [
                           Text(
@@ -192,7 +187,6 @@ class _MovieOverviewState extends State<MovieOverview> {
                         ],
                       ),
 
-                      // Audience Score
                       Column(
                         children: [
                           Text(
@@ -221,7 +215,6 @@ class _MovieOverviewState extends State<MovieOverview> {
 
                   const SizedBox(height: 20),
 
-                  // Overview
                   const Text(
                     "Overview",
                     style: TextStyle(
@@ -244,7 +237,6 @@ class _MovieOverviewState extends State<MovieOverview> {
 
                   const SizedBox(height: 20),
 
-                  // Cast Section
                   if (widget.movie.cast != null &&
                       widget.movie.cast!.isNotEmpty) ...[
                     const Text(
@@ -313,13 +305,11 @@ class _MovieOverviewState extends State<MovieOverview> {
                     const SizedBox(height: 30),
                   ],
 
-                  // Action Buttons
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            // Download functionality
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color.fromARGB(
@@ -354,7 +344,6 @@ class _MovieOverviewState extends State<MovieOverview> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
-                            // Trailer functionality
                           },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(

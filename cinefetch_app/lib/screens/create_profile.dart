@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:cinefetch_app/components/custom_action_message.dart';
 import 'package:cinefetch_app/components/custom_message.dart';
@@ -8,12 +9,12 @@ import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/login_screen.dart';
 import 'package:cinefetch_app/services/image_picker_services.dart';
 import 'package:cinefetch_app/services/network_service.dart';
+import 'package:cinefetch_app/services/session_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
 class CreateProfileProcess extends StatefulWidget {
@@ -56,6 +57,14 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
     if (!networkService.isConnected) {
       _handleNoConnection(networkService);
     }
+  }
+
+  @override
+  void dispose() {
+    _connectionSubscription.cancel();
+    _usernameController.dispose();
+    _pinController.dispose();
+    super.dispose();
   }
 
   void _handleNoConnection(NetworkService networkService) {
@@ -147,13 +156,13 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString("userId");
+      final userId = await SessionManager.getUserId();
+      final tempData = await SessionManager.getTempUserData();
 
-      if (userId == null) {
+      if (userId == null || tempData == null) {
         CustomMessage.show(
           context: context,
-          message: "User ID not found. Please try again.",
+          message: "Registration data not found. Please try again.",
           type: MessageType.error,
         );
         return;
@@ -166,7 +175,6 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
         final storageRef = FirebaseStorage.instance.ref().child(
           "UsersProfileImages/user_upd_$userId.jpg",
         );
-
         await storageRef.putFile(_profileImage!);
         imageUrl = await storageRef.getDownloadURL();
         imageType = "uploaded";
@@ -174,7 +182,6 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
         final defaultRef = FirebaseStorage.instance.ref().child(
           "UsersProfileImages/user_def_default.jpg",
         );
-
         try {
           imageUrl = await defaultRef.getDownloadURL();
         } catch (e) {
@@ -183,19 +190,26 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
           await defaultRef.putData(buffer);
           imageUrl = await defaultRef.getDownloadURL();
         }
-
         imageType = "default";
       }
 
       final progressFuture = _simulateProgress();
 
+      // Update existing user document with complete profile data
       await FirebaseFirestore.instance.collection("user").doc(userId).update({
-        'username': _usernameController.text.trim(),
-        'unlock_pin': _pinController.text.trim(),
-        'profile_img_path': imageUrl,
-        'profile_img_type': imageType,
-        'profileUpdatedAt': FieldValue.serverTimestamp(),
+        "firstName": tempData["firstName"],
+        "lastName": tempData["lastName"],
+        "password": tempData["passwordHash"],
+        "username": _usernameController.text.trim(),
+        "unlock_pin": _pinController.text.trim(),
+        "profile_img_path": imageUrl,
+        "profile_img_type": imageType,
+        "profileCompleted": true,
+        "updatedAt": FieldValue.serverTimestamp(),
       });
+
+      await SessionManager.clearTempUserData();
+      await SessionManager.setProfileCreated(true);
 
       await progressFuture;
 
@@ -256,26 +270,24 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 30.0),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Image.asset(
-                          "assets/logo/cine_fetch_logo_tr.png",
-                          width: 100,
-                          height: 70,
-                          fit: BoxFit.contain,
-                        ),
-                      ],
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Image.asset(
+                        "assets/logo/cine_fetch_logo_tr.png",
+                        width: 100,
+                        height: 70,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(20.0),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            const SizedBox(height: 20),
                             Stack(
                               alignment: Alignment.center,
                               children: [
@@ -398,14 +410,14 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 25.0),
+                            const SizedBox(height: 30),
                             MyTextField(
                               controller: _usernameController,
                               hinttext: "Username",
                               obsecuretext: false,
                               suffixIcon: false,
                             ),
-                            const SizedBox(height: 20.0),
+                            const SizedBox(height: 20),
                             MyPinTextField(
                               controller: _pinController,
                               textfieldinfo:
@@ -414,7 +426,7 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                               obsecuretext: true,
                               suffixIcon: true,
                             ),
-                            const SizedBox(height: 40.0),
+                            const SizedBox(height: 40),
                             if (_isCreating) ...[
                               LinearProgressIndicator(
                                 value: _progress,
@@ -461,6 +473,7 @@ class _CreateProfileProcessState extends State<CreateProfileProcess> {
                                   ),
                                 ),
                               ),
+                            const SizedBox(height: 20),
                           ],
                         ),
                       ),

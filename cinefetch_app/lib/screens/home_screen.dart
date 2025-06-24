@@ -57,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.of(context).pop();
           _dialogShowing = false;
         }
-        // Reload movies if connection returns
         if (!_isLoading && allMovies.isEmpty) {
           _loadMovies();
         }

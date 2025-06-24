@@ -8,6 +8,7 @@ import 'package:cinefetch_app/routes/custom_page_route.dart';
 import 'package:cinefetch_app/screens/email_verification_screen.dart';
 import 'package:cinefetch_app/screens/login_screen.dart';
 import 'package:cinefetch_app/services/network_service.dart';
+import 'package:cinefetch_app/services/session_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -106,30 +107,28 @@ class UserRegisterProcess {
       );
 
       final verificationCode = _generateRandomCode();
+      final userId = credential.user?.uid ?? "";
 
-      await FirebaseFirestore.instance
-          .collection("user")
-          .doc(credential.user?.uid)
-          .set({
-            "firstName": firstName,
-            "lastName": lastName,
-            "email": email,
-            "password": _hashPassword(password),
-            "emailVerified": false,
-            "verificationCode": verificationCode,
-            "createdAt": FieldValue.serverTimestamp(),
-          });
+      await FirebaseFirestore.instance.collection('user').doc(userId).set({
+        "email": email,
+        "verificationCode": verificationCode,
+        "createdAt": FieldValue.serverTimestamp(),
+        "emailVerified": false,
+      });
 
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString("userId", credential.user?.uid ?? "");
+      await SessionManager.setTempUserData({
+        "firstName": firstName,
+        "lastName": lastName,
+        "email": email,
+        "passwordHash": _hashPassword(password),
+      });
+
+      await SessionManager.setUserId(userId);
 
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           SlideFadePageRoute(
-            page: EmailVerificationScreen(
-              email: email,
-              userId: credential.user?.uid ?? "",
-            ),
+            page: EmailVerificationScreen(email: email, userId: userId),
           ),
           (route) => false,
         );
@@ -184,7 +183,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-
     final networkService = Provider.of<NetworkService>(context, listen: false);
 
     _connectionSubscription = networkService.connectionChanges.listen((
@@ -217,7 +215,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _connectionSubscription.cancel();
-
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -229,8 +226,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final networkService = Provider.of<NetworkService>(context);
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: const Color(0xFF020912),
@@ -241,16 +236,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: const Color(0xFF020912),
         body: Stack(
           children: [
-            if (!networkService.isConnected && !_dialogShowing)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.09,
-                  child: Image.asset(
-                    "assets/page_background.png",
-                    fit: BoxFit.cover,
-                  ),
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.09,
+                child: Image.asset(
+                  "assets/page_background.png",
+                  fit: BoxFit.cover,
                 ),
               ),
+            ),
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),

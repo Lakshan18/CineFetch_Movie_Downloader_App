@@ -166,71 +166,88 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 80),
-                  Text(
-                    "Reset Password",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontFamily: "Rosario",
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    "Enter your email to receive a verification code",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: "Quicksand",
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 120),
 
-                  MyTextField(
-                    controller: _emailController,
-                    hinttext: "Your email address",
-                    obsecuretext: false,
-                    suffixIcon: false,
-                  ),
-
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _sendResetCode,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A73E8),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            )
-                          : const Text(
-                              "SEND VERIFICATION CODE",
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      physics: BouncingScrollPhysics(),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              "Reset Password",
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 32,
+                                fontFamily: "Rosario",
+                                fontWeight: FontWeight.w700,
                                 color: Colors.white,
-                                fontFamily: "Quicksand",
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        "Back to login",
-                        style: TextStyle(
-                          color: Color(0xFF1A73E8),
-                          fontFamily: "Quicksand",
-                          fontSize: 14,
+                            const SizedBox(height: 15),
+                            Text(
+                              "Enter your email to receive a verification code",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: "Quicksand",
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+
+                            MyTextField(
+                              controller: _emailController,
+                              hinttext: "Your email address",
+                              obsecuretext: false,
+                              suffixIcon: false,
+                            ),
+
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _sendResetCode,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1A73E8),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation(
+                                          Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        "SEND VERIFICATION CODE",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                          fontFamily: "Quicksand",
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Center(
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text(
+                                  "Back to login",
+                                  style: TextStyle(
+                                    color: Color(0xFF1A73E8),
+                                    fontFamily: "Quicksand",
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

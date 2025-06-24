@@ -1,4 +1,3 @@
-// models/movie.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Movie {
@@ -28,7 +27,6 @@ class Movie {
     required this.cast,
   });
 
-  // Factory constructor to create a Movie from Firestore document
   factory Movie.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Movie(
@@ -48,7 +46,6 @@ class Movie {
     );
   }
 
-  // Convert Movie to Map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'title': title,

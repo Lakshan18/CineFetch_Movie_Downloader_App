@@ -34,15 +34,6 @@ class _MyTextFieldState extends State<MyTextField> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Text(
-          //   textfieldinfo,
-          //   style: TextStyle(
-          //     fontSize: 18,
-          //     fontFamily: "Quicksand",
-          //     fontWeight: FontWeight.w500,
-          //     color: Color(0xFFA2CFF6),
-          //   ),
-          // ),
           TextField(
             controller: widget.controller,
             style: TextStyle(

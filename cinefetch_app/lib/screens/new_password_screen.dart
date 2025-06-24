@@ -120,7 +120,6 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     try {
       final hashedPassword = _hashPassword(newPassword);
 
-      // Update Firestore
       await FirebaseFirestore.instance
           .collection('user')
           .doc(widget.userId)
@@ -129,15 +128,12 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
             'isPasswordReset': FieldValue.delete(),
           });
 
-      // Update Firebase Auth if email/password user exists
       try {
         final authUser = FirebaseAuth.instance.currentUser;
         if (authUser != null && authUser.email == widget.email) {
           await authUser.updatePassword(newPassword);
         }
-      } catch (e) {
-        // Continue even if Firebase Auth update fails
-      }
+      } catch (e) {}
 
       CustomMessage.show(
         context: context,
@@ -196,69 +192,84 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 50),
-                  Text(
-                    "Create New Password",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontFamily: "Rosario",
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    "Your new password must be different from previous ones",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: "Quicksand",
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 120),
 
-                  // New Password Field
-                  MyTextField(
-                    controller: _newPasswordController,
-                    hinttext: "New Password",
-                    obsecuretext: _obscureNewPassword,
-                    suffixIcon: true,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Confirm Password Field
-                  MyTextField(
-                    controller: _confirmPasswordController,
-                    hinttext: "Confirm Password",
-                    obsecuretext: _obscureConfirmPassword,
-                    suffixIcon: true,
-                  ),
-
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _updatePassword,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A73E8),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            )
-                          : const Text(
-                              "UPDATE PASSWORD",
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      physics: BouncingScrollPhysics(),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              "Create New Password",
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 32,
+                                fontFamily: "Rosario",
+                                fontWeight: FontWeight.w700,
                                 color: Colors.white,
-                                fontFamily: "Quicksand",
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                            const SizedBox(height: 15),
+                            Text(
+                              "Your new password must be different from previous ones",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: "Quicksand",
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+
+                            MyTextField(
+                              controller: _newPasswordController,
+                              hinttext: "New Password",
+                              obsecuretext: _obscureNewPassword,
+                              suffixIcon: true,
+                            ),
+                            const SizedBox(height: 20),
+
+                            MyTextField(
+                              controller: _confirmPasswordController,
+                              hinttext: "Confirm Password",
+                              obsecuretext: _obscureConfirmPassword,
+                              suffixIcon: true,
+                            ),
+
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _updatePassword,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1A73E8),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation(
+                                          Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        "UPDATE PASSWORD",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                          fontFamily: "Quicksand",
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
