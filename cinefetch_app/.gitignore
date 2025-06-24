@@ -13,9 +13,7 @@
 migrate_working_dir/
 .env
 .node_modules
-.functions
-.serviceAccountKey
-.js
+functions/serviceAccountKey.json
 
 # IntelliJ related
 *.iml
